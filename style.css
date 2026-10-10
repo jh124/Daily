@@ -34,3 +34,9 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 .maintenance-breakdown dt{color:#6e7b67}.maintenance-breakdown dd{margin:0;text-align:right;font-weight:600}
 .maintenance-formula{font-size:11px;line-height:1.7;background:#f3f6ec;padding:12px;border-radius:10px;margin:16px 0 0;color:#4c6440}
 .maintenance-caveat{background:#f9faf5}
+
+/* Compact meal controls, editing, undo, and maintenance targets. */
+#meals .row{flex-wrap:wrap}#meals .row>div:first-child{flex:1;min-width:105px}#meals .row-actions{margin-left:auto}.meal-serving{width:56px;padding:8px 4px;min-height:36px;font-size:12px}
+.entry-edit{flex:1;min-width:0;border:0;background:transparent;text-align:left;padding:6px 0;color:var(--ink)}.entry-edit span{display:block}.entry-edit:hover .row-name{text-decoration:underline}
+#toast{display:flex;align-items:center;gap:16px}#toast.show{pointer-events:auto}#undo-button{border:0;background:transparent;color:#daebc6;font-weight:600;padding:8px 0;flex-shrink:0}
+.maintenance-targets{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:14px 0;border-top:1px solid #dce3d3;border-bottom:1px solid #dce3d3;margin:14px 0 8px}.maintenance-targets span{display:block;font-size:11px;color:#617454}.maintenance-targets small{font-size:10px;white-space:nowrap;opacity:.8}.maintenance-targets strong{display:block;font-size:16px;font-weight:600;margin-top:5px}.maintenance-targets+.hint{margin-top:8px}
