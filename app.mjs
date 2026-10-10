@@ -8,8 +8,8 @@ function empty(text){return `<div class="empty">${text}</div>`;}
 $('macro-date').value=selected;$('weight-date').value=today();$('macro-date').max=today();$('weight-date').max=today();
 $('chart-range').innerHTML='<option value="week">1 week</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1} month${i?'s':''}</option>`).join('')+'<option value="all">All data</option>';$('chart-range').value='1';
 $('trend-range').innerHTML=Array.from({length:12},(_,i)=>`<option value="${i+1}">Last ${i+1} month${i?'s':''}</option>`).join('');
-function switchPage(next){page=next;$('macro-page').hidden=next!=='macro';$('weight-page').hidden=next!=='weight';$('nav-pill').style.transform=next==='weight'?'translateX(100%)':'translateX(0)';for(const p of ['macro','weight']){$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();}
-$('macro-tab').onclick=()=>switchPage('macro');$('weight-tab').onclick=()=>switchPage('weight');
+function switchPage(next){const pages=['macro','weight','maintenance'];page=next;$('nav-pill').style.transform=`translateX(${pages.indexOf(next)*100}%)`;for(const p of pages){$(p+'-page').hidden=p!==next;$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();}
+for(const p of ['macro','weight','maintenance'])$(p+'-tab').onclick=()=>switchPage(p);
 function selectDay(d){if(d>today())return;selected=d;$('macro-date').value=d;render();}
 $('macro-date').onchange=()=>{if($('macro-date').value)selectDay($('macro-date').value);};
 function shiftDay(n){const d=new Date(selected+'T12:00:00');d.setDate(d.getDate()+n);selectDay(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);}
@@ -24,7 +24,7 @@ $('macro-history').onclick=e=>{const b=e.target.closest('button');if(b){selectDa
 $('weight-table').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.action==='delete'){if(confirm('Delete the weigh-in for '+dateLabel(b.dataset.date)+'?'))save({...data,weights:data.weights.filter(r=>r.date!==b.dataset.date)});}else{$('weight-date').value=b.dataset.date;$('weight-input').value=data.weights.find(r=>r.date===b.dataset.date).weight;window.scrollTo({top:0,behavior:'smooth'});$('weight-input').focus();}};
 function setView(v){view=v;$('graph-panel').hidden=v!=='graph';$('weight-table').hidden=v!=='table';for(const t of ['graph','table']){$(t+'-view').classList.toggle('active',v===t);$(t+'-view').setAttribute('aria-pressed',String(v===t));}}
 $('graph-view').onclick=()=>setView('graph');$('table-view').onclick=()=>setView('table');$('chart-range').onchange=renderWeight;$('trend-range').onchange=renderWeight;
-function render(){renderMacros();renderWeight();}
+function render(){renderMacros();renderWeight();renderMaintenance();}
 function renderMacros(){const entries=data.entries.filter(r=>r.date===selected);$('cal-total').textContent=number(entries.reduce((s,r)=>s+r.calories,0));$('protein-total').innerHTML=number(entries.reduce((s,r)=>s+r.protein,0))+'<span> g</span>';$('day-label').textContent=selected===today()?'Today':dateLabel(selected);$('next-day').disabled=selected>=today();$('log-label').textContent=selected===today()?'Add to today':'Add to this day';$('entries-title').textContent=selected===today()?"Today's log":'Daily log';$('entry-count').textContent=entries.length+' entr'+(entries.length===1?'y':'ies');
 $('meals').innerHTML=data.meals.length?data.meals.map(r=>`<div class="row"><div><div class="row-name">${escape(r.name)}</div><div class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</div></div><div class="row-actions"><button class="text-button" data-action="add" data-id="${escape(r.id)}">Add to today</button><button class="icon-button" data-action="delete" data-id="${escape(r.id)}" aria-label="Delete ${escape(r.name)}">×</button></div></div>`).join(''):empty('No saved meals.');
 $('entries').innerHTML=entries.length?[...entries].reverse().map(r=>`<div class="row"><div><div class="row-name">${escape(r.name)}</div><div class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</div></div><button class="icon-button" data-id="${escape(r.id)}" aria-label="Delete ${escape(r.name)}">×</button></div>`).join(''):empty('No entries.');
@@ -32,6 +32,48 @@ const days=new Map();for(const r of data.entries){const sums=days.get(r.date)||{
 // A rolling average uses weigh-ins from the current day and previous six calendar days.
 // Missing days are not treated as zero or filled with made-up values.
 function rollingWeights(all){return all.map(r=>{const first=dayNumber(r.date)-6;const recent=all.filter(q=>dayNumber(q.date)>=first&&q.date<=r.date);return {...r,average:recent.reduce((s,q)=>s+q.weight,0)/recent.length,samples:recent.length};});}
+// Short-window energy-balance estimate, not a physiological or long-term prediction.
+// Morning weights bracket calorie days: intake on the last weigh-in date is excluded.
+// Short-window energy balance; morning weigh-ins bracket completed calorie days.
+function estimateMaintenance(records, now=today()) {
+  const end=dayNumber(now), date=n=>new Date(n*86400000).toISOString().slice(0,10),totals=new Map();
+  for(const row of records.entries) totals.set(row.date,(totals.get(row.date)||0)+row.calories);
+  let logged=0;
+  while(logged<28&&(totals.get(date(end-logged-1))||0)>0) logged++;
+  const weights=records.weights.filter(r=>r.date>=date(end-logged)&&r.date<=now).sort((a,b)=>a.date.localeCompare(b.date));
+  const first=weights.length?dayNumber(weights[0].date):null,last=weights.length?dayNumber(weights.at(-1).date):null;
+  const span=weights.length?last-first:0,early=weights.filter(r=>dayNumber(r.date)<first+7).length,late=weights.filter(r=>dayNumber(r.date)>last-7).length;
+  const result={value:null,logged,count:weights.length,span,early,late,first:first===null?null:date(first),last:last===null?null:date(last),age:last===null?null:end-last};
+  const pending=detail=>({...result,detail});
+  if(logged<21) return pending(`Log ${21-logged} more consecutive calorie day${21-logged===1?'':'s'} to reach 21.`);
+  if(weights.length<10) return pending(`Add ${10-weights.length} more weigh-in${10-weights.length===1?'':'s'} within your logging window.`);
+  if(end-last>3) return pending('Add a recent weigh-in to update your estimate.');
+  if(span<21) return pending(`Keep weighing in: your weights need to span ${21-span} more day${21-span===1?'':'s'}.`);
+  if(early<2||late<2) return pending('Needs at least 2 weigh-ins in both the first and last week.');
+  const weekly=trend(weights),meanWeight=weights.reduce((s,r)=>s+r.weight,0)/weights.length;
+  if(weekly===null||Math.abs(weekly)>meanWeight*.01) return pending('Weight is changing too quickly for a useful estimate. Keep logging.');
+  let calories=0;
+  for(let day=first;day<last;day++) calories+=totals.get(date(day));
+  const intake=calories/span,estimate=intake-weekly*3500/7;
+  if(!Number.isFinite(estimate)||estimate<50) return pending('Check your calorie logs and weights before estimating.');
+  return {...result,value:Math.round(estimate/50)*50,intake,weekly,adjustment:-weekly*3500/7,detail:`Based on ${span} days of calories and ${weights.length} weigh-ins.`};
+}
+function renderMaintenance(){
+  const e=estimateMaintenance(data),ready=e.value!==null;
+  $('maintenance-value').innerHTML=(ready?'≈ '+number(e.value):'—')+'<span> kcal / day</span>';
+  $('maintenance-detail').textContent=e.detail;
+  $('maintenance-status').textContent=ready?'Estimate available':'Gathering data';
+  $('maintenance-period').textContent=e.first&&e.last?`${dateLabel(e.first)} – ${dateLabel(e.last)}`:'Your recent logging window';
+  const progress=(id,value,goal)=>{$(id+'-text').textContent=`${value} / ${goal}`;$(id+'-bar').value=Math.min(value,goal);};
+  progress('maintenance-logs',e.logged,21);progress('maintenance-weights',e.count,10);progress('maintenance-span',e.span,21);
+  $('maintenance-coverage').textContent=e.count?`First week: ${e.early} · last week: ${e.late} weigh-ins (2 each needed).`:'Regular weigh-ins are needed at both ends of the period.';
+  $('maintenance-freshness').textContent=e.last?`Latest: ${dateLabel(e.last)}${e.age>3?' · add a fresh weigh-in':''}`:'No weigh-ins in the current calorie-logging window.';
+  $('maintenance-intake').textContent=ready?number(Math.round(e.intake))+' kcal / day':'—';
+  $('maintenance-trend').textContent=ready?(e.weekly>0?'+':'')+number(Math.abs(e.weekly)<.005?0:e.weekly)+' lb / week':'—';
+  $('maintenance-adjustment').textContent=ready?(e.adjustment>=0?'+':'−')+number(Math.round(Math.abs(e.adjustment)))+' kcal / day':'—';
+  $('maintenance-calculation-note').textContent=ready?(Math.abs(e.weekly)<.005?'Your weight is approximately stable, so maintenance is close to your average intake.':e.weekly>0?'Your weight trend is rising, so the estimate subtracts energy being stored.':'Your weight trend is falling, so the estimate adds energy being supplied by your body.'):'The breakdown appears once there is enough recent data.';
+}
+
 function renderWeight(){const all=[...data.weights].sort((a,b)=>a.date.localeCompare(b.date));const averaged=rollingWeights(all);const recent=all.filter(r=>r.date<=today()&&dayNumber(r.date)>=dayNumber(today())-6);const average=recent.length>=2?recent.reduce((sum,r)=>sum+r.weight,0)/recent.length:null;$('average-value').innerHTML=(average===null?'—':number(average))+'<span> lb</span>';$('average-detail').textContent=average===null?'Needs 2 weigh-ins in the past 7 days.':`${recent.length} weigh-ins · past 7 days`;const start=cutoff(Number($('trend-range').value)),rows=all.filter(r=>r.date>=start&&r.date<=today()),change=trend(rows);$('trend-value').innerHTML=(change===null?'—':(change>0?'+':'')+number(Math.abs(change)<.005?0:change))+'<span> lb / week</span>';$('trend-detail').textContent=change===null?'Needs 2 weigh-ins in this period.':`Based on ${rows.length} weigh-ins`;
 $('weight-table').innerHTML=all.length?`<table><thead><tr><th>Date</th><th>Weight</th><th>7-day avg</th><th></th></tr></thead><tbody>${[...averaged].reverse().map(r=>`<tr><td><button data-action="edit" data-date="${r.date}">${dateLabel(r.date)}</button></td><td>${number(r.weight)} lb</td><td>${r.samples>=2?number(r.average)+' lb':'—'}</td><td><button data-action="delete" data-date="${r.date}" aria-label="Delete weigh-in for ${dateLabel(r.date)}">×</button></td></tr>`).join('')}</tbody></table>`:empty('No weigh-ins.');
 const range=$('chart-range').value;let min=range==='all'?'0000-00-00':range==='week'?new Date((dayNumber(today())-6)*86400000).toISOString().slice(0,10):cutoff(+range);const plot=averaged.filter(r=>r.date>=min&&r.date<=today());drawChart(plot,min);}

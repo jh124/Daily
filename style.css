@@ -9,3 +9,28 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 
 /* Weight graph legend and compact average column. */
 .chart-legend{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted);margin:5px 0 9px}.chart-legend span{display:inline-flex;align-items:center;gap:7px}.legend-line{width:18px;border-top:3px solid #719752;display:inline-block}.legend-line.avg{border-color:#273d32}#weight-table{overflow-x:auto}#weight-table table{min-width:310px}#weight-table th,#weight-table td{white-space:nowrap}
+
+/* Three pages; reserve room for the data button on small screens. */
+.bottom-nav{width:min(380px,calc(100% - 88px));left:calc(50% - 30px)}
+.bottom-nav button{width:33.333333%;padding:0 2px;font-size:11px}
+#nav-pill{width:calc((100% - 10px)/3)}
+.maintenance-status{display:inline-block;margin:0 0 3px;padding:5px 9px;border-radius:20px;background:#dce8ce;color:#48623c;font-size:10px;font-weight:600}
+.maintenance-hero .trend-value{margin:14px 0 10px;font-size:42px}
+.maintenance-copy,.maintenance-explanation p{font-size:12px;line-height:1.65;color:#64715f;margin:12px 0 0}
+.maintenance-copy strong,.maintenance-explanation strong{color:var(--ink);font-weight:600}
+.maintenance-note{font-size:12px;line-height:1.6;margin:15px 0 0;color:#48623c}
+.maintenance-period{font-size:11px;color:var(--muted);margin:-5px 0 20px;line-height:1.5}
+.maintenance-progress{margin:18px 0}
+.maintenance-progress label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px}
+.maintenance-progress label span{font-size:11px;white-space:nowrap;color:#657b55}
+.maintenance-progress progress{display:block;width:100%;height:7px;margin:10px 0 7px;border:0;border-radius:10px;overflow:hidden;appearance:none;background:#edf0e6;accent-color:#8cab71}
+.maintenance-progress progress::-webkit-progress-bar{background:#edf0e6;border-radius:10px}
+.maintenance-progress progress::-webkit-progress-value{background:#8cab71;border-radius:10px}
+.maintenance-progress progress::-moz-progress-bar{background:#8cab71;border-radius:10px}
+.maintenance-progress p,.maintenance-coverage p{font-size:11px;line-height:1.6;color:var(--muted);margin:4px 0}
+.maintenance-coverage{border-top:1px solid var(--line);padding-top:12px;margin-top:20px}
+.maintenance-breakdown{margin:0}
+.maintenance-breakdown>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:12px}
+.maintenance-breakdown dt{color:#6e7b67}.maintenance-breakdown dd{margin:0;text-align:right;font-weight:600}
+.maintenance-formula{font-size:11px;line-height:1.7;background:#f3f6ec;padding:12px;border-radius:10px;margin:16px 0 0;color:#4c6440}
+.maintenance-caveat{background:#f9faf5}
