@@ -6,3 +6,6 @@ input[type="date"]::-webkit-date-and-time-value{min-width:0;text-align:left}
 input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 .day-picker input[type="date"]{height:36px;min-height:36px}
 @media(max-width:480px){#weight-form .fields{grid-template-columns:minmax(0,1fr)}}
+
+/* Weight graph legend and compact average column. */
+.chart-legend{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted);margin:5px 0 9px}.chart-legend span{display:inline-flex;align-items:center;gap:7px}.legend-line{width:18px;border-top:3px solid #719752;display:inline-block}.legend-line.avg{border-color:#273d32}#weight-table{overflow-x:auto}#weight-table table{min-width:310px}#weight-table th,#weight-table td{white-space:nowrap}
