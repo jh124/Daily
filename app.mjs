@@ -1,11 +1,12 @@
+import {createCloud} from './cloud.mjs';
 import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV} from './core.mjs';
-const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],meals:[],weights:[]},selected=today(),page='macro',view='graph',timer;
+const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],meals:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null;
-const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
+const PREF_KEY=GUEST_KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
 function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value}));}catch{}}
 function toast(msg){$('toast-message').textContent=msg;$('undo-button').hidden=!undoState;$('toast').classList.add('show');clearTimeout(timer);timer=setTimeout(()=>{$('toast').classList.remove('show');undoState=null;$('undo-button').hidden=true;},undoState?5000:4000);}
 let loadFailed=false;try{const stored=localStorage.getItem(KEY);if(stored)data=validate(JSON.parse(stored));}catch{loadFailed=true;toast('Saved data could not be read. Export or restore a backup before making changes.');}
-function save(next,undoable=true){if(loadFailed){toast('Storage could not be read. Import a valid backup to restore it.');return false;}try{validate(next);const before=JSON.stringify(data),after=JSON.stringify(next);localStorage.setItem(KEY,after);undoState=undoable?{before,after}:null;data=next;render();toast('Saved.');return true;}catch{toast('Could not save. Check values or export a backup and free up storage.');return false;}}
+function save(next,undoable=true){if(loadFailed){toast('Storage could not be read. Import a valid backup to restore it.');return false;}try{validate(next);const before=JSON.stringify(data),after=JSON.stringify(next);localStorage.setItem(KEY,after);undoState=undoable?{before,after}:null;data=next;cloud?.changed();render();toast('Saved.');return true;}catch{toast('Could not save. Check values or export a backup and free up storage.');return false;}}
 $('undo-button').onclick=()=>{if(!undoState)return;try{if(localStorage.getItem(KEY)!==undoState.after){undoState=null;toast('Data changed elsewhere; undo is no longer available.');return;}if(save(JSON.parse(undoState.before),false))toast('Undone.');}catch{toast('Could not undo. Please try again.');}};
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const number=n=>new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(n);const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});const uid=()=>crypto.randomUUID();
 function empty(text){return `<div class="empty">${text}</div>`;}
@@ -91,14 +92,51 @@ function closeTools(){$('data-menu').hidden=true;$('tools-toggle').setAttribute(
 $('tools-toggle').onclick=()=>{$('data-menu').hidden=!$('data-menu').hidden;$('tools-toggle').setAttribute('aria-expanded',String(!$('data-menu').hidden));};document.addEventListener('click',e=>{if(!e.target.closest('.data-tools'))closeTools();});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTools();});
 function download(content,extension,mime){const url=URL.createObjectURL(new Blob([content],{type:mime}));const a=document.createElement('a');a.href=url;a.download=`daily-backup-${today()}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);closeTools();}
 $('export-json').onclick=()=>{if(loadFailed){const raw=localStorage.getItem(KEY);if(raw)download(raw,'json','application/json');else toast('No saved data available.');return;}download(JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2),'json','application/json');};$('export-csv').onclick=()=>download(toCSV(data),'csv','text/csv;charset=utf-8');$('import-button').onclick=()=>$('import-file').click();
-$('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw Error('Backup is too large (maximum 20 MB).');const raw=await file.text(),incoming=file.name.toLowerCase().endsWith('.csv')?fromCSV(raw):validate(JSON.parse(raw));const counts=`${incoming.entries.length} macro entries, ${incoming.meals.length} meals, and ${incoming.weights.length} weigh-ins`;if(confirm(`Import ${counts}? This merges with your data. Matching IDs and weigh-in dates use the imported values.`)){const next=merge(data,incoming);if(loadFailed){localStorage.setItem(KEY,JSON.stringify(next));data=next;loadFailed=false;render();toast('Backup restored.');}else if(save(next))toast('Data imported.');closeTools();}}catch(err){toast(err.message||'Could not import this file.');}finally{e.target.value='';}};
+$('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw Error('Backup is too large (maximum 20 MB).');const raw=await file.text(),incoming=file.name.toLowerCase().endsWith('.csv')?fromCSV(raw):validate(JSON.parse(raw));const counts=`${incoming.entries.length} macro entries, ${incoming.meals.length} meals, and ${incoming.weights.length} weigh-ins`;if(confirm(`Import ${counts}? This merges with your data. Matching IDs and weigh-in dates use the imported values.`)){const next=merge(data,incoming);if(loadFailed){localStorage.setItem(KEY,JSON.stringify(next));data=next;loadFailed=false;cloud?.changed();render();toast('Backup restored.');}else if(save(next))toast('Data imported.');closeTools();}}catch(err){toast(err.message||'Could not import this file.');}finally{e.target.value='';}};
 window.addEventListener('storage',e=>{if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],meals:[],weights:[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 function showStorageNotice(){
-  const noticeKey=KEY+'-storage-notice-seen';
+  const noticeKey=GUEST_KEY+'-storage-notice-seen';
   $('storage-notice-close').onclick=()=>$('storage-notice').close();
   $('storage-notice').onclose=()=>{try{localStorage.setItem(noticeKey,'1');}catch{}};
   try{if(localStorage.getItem(noticeKey)==='1')return;}catch{}
   $('storage-notice').showModal();
 }
+
+cloud=createCloud({
+  read:()=>data,
+  activate:async user=>{
+    const nextKey=user?GUEST_KEY+'-user-'+user:GUEST_KEY;
+    if(nextKey===KEY)return;
+    const stored=localStorage.getItem(nextKey);
+    let next=stored?validate(JSON.parse(stored)):{app:'daily-macros-weight',version:1,entries:[],meals:[],weights:[]};
+    if(user&&!stored&&KEY===GUEST_KEY&&(data.entries.length||data.meals.length||data.weights.length)&&confirm('Copy this device’s existing Daily data into this account? It will merge with your cloud history.'))next=structuredClone(data);
+    localStorage.setItem(nextKey,JSON.stringify(next));
+    KEY=nextKey;data=next;loadFailed=false;undoState=null;render();
+  },
+  apply:next=>{if(loadFailed)throw Error('Restore your unreadable local data before syncing.');localStorage.setItem(KEY,JSON.stringify(next));data=next;undoState=null;render();},
+  status:(message,user,configured)=>{
+    $('cloud-status').textContent=message;$('account-email').textContent=user?.email||'Optional cloud backup';
+    $('auth-form').hidden=!!user||!configured;$('account-actions').hidden=!user;
+    $('cloud-unavailable').hidden=configured;$('account-open').textContent=user?'Account & sync':'Account / cloud sync';
+  }
+});
+$('account-open').onclick=()=>{closeTools();$('account-dialog').showModal();};
+$('account-close').onclick=()=>$('account-dialog').close();
+async function accountAction(action){
+  const buttons=[...$('account-dialog').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+  try{const message=await action();if(message)$('account-message').textContent=message;else $('account-message').textContent='';}
+  catch(err){$('account-message').textContent=err.message;}
+  finally{buttons.forEach(b=>b.disabled=false);$('account-password').value='';}
+}
+$('auth-form').onsubmit=e=>{e.preventDefault();const email=$('account-login-email').value.trim(),password=$('account-password').value;
+  accountAction(()=>e.submitter.id==='account-signup'?cloud.signUp(email,password):cloud.signIn(email,password));};
+$('account-recover').onclick=()=>accountAction(()=>cloud.recover($('account-login-email').value.trim()));
+$('account-sync').onclick=()=>accountAction(()=>cloud.sync());
+$('account-signout').onclick=()=>{if(confirm('Sign out? Unsynced changes stay on this device for this account. Your separate guest log will reopen.'))accountAction(()=>cloud.signOut());};
+$('account-delete').onclick=()=>{if(confirm('Permanently delete this account and its cloud history? Export a backup first if you want to keep it.'))accountAction(()=>cloud.deleteAccount());};
+$('password-form').onsubmit=e=>{e.preventDefault();accountAction(async()=>{const message=await cloud.password($('new-password').value);$('password-form').hidden=true;$('new-password').value='';return message;});};
+document.addEventListener('daily-password-recovery',()=>{$('password-form').hidden=false;$('account-dialog').showModal();});
+window.addEventListener('storage',e=>{if(e.key===KEY)cloud.changed();if(e.key==='daily-cloud-session')location.reload();});
+cloud.start();

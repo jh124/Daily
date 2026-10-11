@@ -42,3 +42,5 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 .maintenance-targets{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:14px 0;border-top:1px solid #dce3d3;border-bottom:1px solid #dce3d3;margin:14px 0 8px}.maintenance-targets span{display:block;font-size:11px;color:#617454}.maintenance-targets small{font-size:10px;white-space:nowrap;opacity:.8}.maintenance-targets strong{display:block;font-size:16px;font-weight:600;margin-top:5px}.maintenance-targets+.hint{margin-top:8px}
 
 #storage-notice{max-height:85dvh;overflow-y:auto}#storage-notice .primary{margin-top:20px}
+
+.account-buttons{display:flex;gap:10px;margin:16px 0}.account-buttons button{flex:1}#cloud-status{font-size:14px}#account-message{font-size:14px;overflow-wrap:anywhere}#account-email{overflow-wrap:anywhere}
