@@ -128,15 +128,11 @@ async function accountAction(action){
   const buttons=[...$('account-dialog').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
   try{const message=await action();if(message)$('account-message').textContent=message;else $('account-message').textContent='';}
   catch(err){$('account-message').textContent=err.message;}
-  finally{buttons.forEach(b=>b.disabled=false);$('account-password').value='';}
+  finally{buttons.forEach(b=>b.disabled=false);}
 }
-$('auth-form').onsubmit=e=>{e.preventDefault();const email=$('account-login-email').value.trim(),password=$('account-password').value;
-  accountAction(()=>e.submitter.id==='account-signup'?cloud.signUp(email,password):cloud.signIn(email,password));};
-$('account-recover').onclick=()=>accountAction(()=>cloud.recover($('account-login-email').value.trim()));
+$('auth-form').onsubmit=e=>{e.preventDefault();accountAction(()=>cloud.sendLink($('account-login-email').value.trim()));};
 $('account-sync').onclick=()=>accountAction(()=>cloud.sync());
 $('account-signout').onclick=()=>{if(confirm('Sign out? Unsynced changes stay on this device for this account. Your separate guest log will reopen.'))accountAction(()=>cloud.signOut());};
 $('account-delete').onclick=()=>{if(confirm('Permanently delete this account and its cloud history? Export a backup first if you want to keep it.'))accountAction(()=>cloud.deleteAccount());};
-$('password-form').onsubmit=e=>{e.preventDefault();accountAction(async()=>{const message=await cloud.password($('new-password').value);$('password-form').hidden=true;$('new-password').value='';return message;});};
-document.addEventListener('daily-password-recovery',()=>{$('password-form').hidden=false;$('account-dialog').showModal();});
 window.addEventListener('storage',e=>{if(e.key===KEY)cloud.changed();if(e.key==='daily-cloud-session')location.reload();});
 cloud.start();

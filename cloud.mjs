@@ -67,10 +67,12 @@ export function createCloud({read,activate,apply,status},config=cloudConfig){
   }
   const api={
     changed(){dirty=true;if(!running){dirty=false;report(session?'Changes waiting to sync':'Saved on this device');clearTimeout(api.timer);api.timer=setTimeout(sync,800);}},sync,
-    async signIn(email,password){await attach(await request('/auth/v1/token?grant_type=password',{email,password}));},
-    async signUp(email,password){const value=await request('/auth/v1/signup?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email,password});if(value.access_token)await attach(value);else return 'Check your email to confirm your account, then sign in.';},
-    async recover(email){await request('/auth/v1/recover?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email});return 'If an account exists, a password reset email will be sent.';},
-    async password(password){await request('/auth/v1/user',{password},await token(),'PUT');return 'Password updated.';},
+    async sendLink(email){
+      email=email.trim();
+      if(!email)throw Error('Enter your email address.');
+      await request('/auth/v1/otp?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email,create_user:true});
+      return 'Check your email for a login link. New here? The link creates your account too.';
+    },
     async signOut(){
       generation++;const previous=session;session=null;localStorage.removeItem(SESSION);
       await activate(null);report('Saved on this device');
@@ -82,10 +84,15 @@ export function createCloud({read,activate,apply,status},config=cloudConfig){
       if(!configured)return;
       try{
         const fragment=new URLSearchParams(location.hash.slice(1));
+        if(fragment.has('error')||fragment.has('error_description')){
+          history.replaceState(null,'',location.pathname+location.search);
+          throw Error('This login link is expired or invalid. Request a new link.');
+        }
         if(fragment.has('access_token')){
           const value={access_token:fragment.get('access_token'),refresh_token:fragment.get('refresh_token'),expires_in:Number(fragment.get('expires_in'))||3600};
-          const recovery=fragment.get('type')==='recovery';history.replaceState(null,'',location.pathname+location.search);
-          await attach(value);if(recovery)document.dispatchEvent(new Event('daily-password-recovery'));
+          history.replaceState(null,'',location.pathname+location.search);
+          if(!value.refresh_token)throw Error('Incomplete login link. Request a new link.');
+          await attach(value);
         }else{
           const saved=JSON.parse(localStorage.getItem(SESSION)||'null');
           if(saved?.user?.id){session=saved;await activate(saved.user.id);await sync();}
