@@ -25,3 +25,7 @@ Each browser/device has its own saved data. Export backups periodically. Backups
 ## Updates
 
 Replace the app files in the same repository and commit. GitHub Pages republishes them. Refresh or reopen the app after deployment. Keep the same site address to retain the device's saved data.
+
+## Optional cloud accounts
+
+Optional account and offline sync support is prepared but remains disabled until a Supabase project is connected. See [CLOUD_SETUP.md](CLOUD_SETUP.md) for configuration, security, and live validation. Guest data remains local and export/import still works.
