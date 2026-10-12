@@ -95,3 +95,12 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 
 /* Keep Daily at a fixed visual scale while preserving one-finger scrolling. */
 html,body{touch-action:pan-x pan-y}
+
+/* Balanced weight overview cards; each stat stays square on phone screens. */
+.weight-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.weight-summary .weight-stat{min-width:0;aspect-ratio:1/1;margin-bottom:0;padding:clamp(14px,3.6vw,21px);display:flex;flex-direction:column;justify-content:space-between}
+.weight-summary .card-title{margin-bottom:0}
+.weight-summary h2{font-size:clamp(13px,3.6vw,16px);line-height:1.25}
+.weight-summary .trend-value{margin:0;font-size:clamp(24px,7.2vw,36px);line-height:1.1;letter-spacing:-1px;white-space:nowrap}
+.weight-summary .trend-value span{font-size:clamp(11px,3vw,14px);letter-spacing:0}
+.weight-summary p.muted{margin:0;font-size:11px;line-height:1.4}
