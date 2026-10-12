@@ -1,4 +1,4 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV} from './core.mjs?v=24';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV} from './core.mjs?v=25';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
