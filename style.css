@@ -35,8 +35,8 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 .maintenance-formula{font-size:11px;line-height:1.7;background:#f3f6ec;padding:12px;border-radius:10px;margin:16px 0 0;color:#4c6440}
 .maintenance-caveat{background:#f9faf5}
 
-/* Compact meal controls, editing, undo, and maintenance targets. */
-#meals .row{flex-wrap:nowrap;gap:8px}#meals .row>div:first-child{flex:1;min-width:0}#meals .row-actions{margin-left:auto;gap:4px}#meals .text-button{padding:7px 8px;min-height:32px}#meals .icon-button{min-width:24px;padding:4px;min-height:32px}.meal-serving{width:40px;min-width:40px;height:32px;min-height:32px;padding:4px 12px 4px 5px;font-size:11px;border-radius:7px;appearance:none;-webkit-appearance:none;background-color:#fff;background-image:linear-gradient(45deg,transparent 50%,#7b857b 50%),linear-gradient(135deg,#7b857b 50%,transparent 50%);background-position:calc(100% - 7px) 14px,calc(100% - 4px) 14px;background-size:3px 3px;background-repeat:no-repeat}
+/* Compact food controls, editing, undo, and maintenance targets. */
+#foods .row{flex-wrap:nowrap;gap:8px}#foods .row>div:first-child{flex:1;min-width:0}#foods .row-actions{margin-left:auto;gap:4px}#foods .text-button{padding:7px 8px;min-height:32px}#foods .icon-button{min-width:24px;padding:4px;min-height:32px}.food-serving{width:40px;min-width:40px;height:32px;min-height:32px;padding:4px 12px 4px 5px;font-size:11px;border-radius:7px;appearance:none;-webkit-appearance:none;background-color:#fff;background-image:linear-gradient(45deg,transparent 50%,#7b857b 50%),linear-gradient(135deg,#7b857b 50%,transparent 50%);background-position:calc(100% - 7px) 14px,calc(100% - 4px) 14px;background-size:3px 3px;background-repeat:no-repeat}
 .entry-edit{flex:1;min-width:0;border:0;background:transparent;text-align:left;padding:6px 0;color:var(--ink)}.entry-edit span{display:block}.entry-edit:hover .row-name{text-decoration:underline}
 #toast{display:flex;align-items:center;gap:16px}#toast.show{pointer-events:auto}#undo-button{border:0;background:transparent;color:#daebc6;font-weight:600;padding:8px 0;flex-shrink:0}
 .maintenance-targets{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:14px 0;border-top:1px solid #dce3d3;border-bottom:1px solid #dce3d3;margin:14px 0 8px}.maintenance-targets span{display:block;font-size:11px;color:#617454}.maintenance-targets small{font-size:10px;white-space:nowrap;opacity:.8}.maintenance-targets strong{display:block;font-size:16px;font-weight:600;margin-top:5px}.maintenance-targets+.hint{margin-top:8px}
@@ -76,13 +76,13 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 [data-theme="dark"] .maintenance-targets{border-color:var(--line)}
 [data-theme="dark"] .maintenance-progress progress,[data-theme="dark"] .maintenance-progress progress::-webkit-progress-bar{background:#3b4b40}
 [data-theme="dark"] .maintenance-formula{background:#304133;color:#c5e0b6}
-[data-theme="dark"] .meal-serving{background-color:#1c2620;background-image:linear-gradient(45deg,transparent 50%,#bac9b9 50%),linear-gradient(135deg,#bac9b9 50%,transparent 50%)}
+[data-theme="dark"] .food-serving{background-color:#1c2620;background-image:linear-gradient(45deg,transparent 50%,#bac9b9 50%),linear-gradient(135deg,#bac9b9 50%,transparent 50%)}
 [data-theme="dark"] #toast{background:#35473a;color:#f0f8ed}
 [data-theme="dark"] dialog::backdrop{background:#050907b3}
 
 /* iOS-safe serving picker: use a single SVG chevron rather than layered gradients. */
-.meal-serving,[data-theme="dark"] .meal-serving{appearance:none;-webkit-appearance:none;width:43px;min-width:43px;padding:4px 13px 4px 5px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23889784' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-position:right 5px center;background-size:10px 7px;background-repeat:no-repeat;background-color:#fff;color:var(--ink)}
-[data-theme="dark"] .meal-serving{background-color:#1c2620}
+.food-serving,[data-theme="dark"] .food-serving{appearance:none;-webkit-appearance:none;width:43px;min-width:43px;padding:4px 13px 4px 5px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23889784' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-position:right 5px center;background-size:10px 7px;background-repeat:no-repeat;background-color:#fff;color:var(--ink)}
+[data-theme="dark"] .food-serving{background-color:#1c2620}
 /* Keep the sun a text glyph, not a yellow emoji. */
 #theme-toggle span{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Symbol',sans-serif;font-variant-emoji:text}
 
