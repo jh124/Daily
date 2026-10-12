@@ -4,7 +4,7 @@ let undoState=null,editingEntry=null;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
 function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value,theme:document.documentElement.dataset.theme==='dark'?'dark':'light'}));}catch{}}
 
-function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-toggle').querySelector('span').textContent=dark?'☀':'☾';$('theme-toggle').setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
+function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-toggle').querySelector('span').textContent=dark?'☀︎':'☾';$('theme-toggle').setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
 setTheme(preferences.theme==='dark'?'dark':'light');
 $('theme-toggle').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');savePreferences();};
 function toast(msg){$('toast-message').textContent=msg;$('undo-button').hidden=!undoState;$('toast').classList.add('show');clearTimeout(timer);timer=setTimeout(()=>{$('toast').classList.remove('show');undoState=null;$('undo-button').hidden=true;},undoState?5000:4000);}
