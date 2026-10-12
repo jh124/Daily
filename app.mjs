@@ -1,4 +1,4 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV} from './core.mjs?v=28';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV} from './core.mjs?v=29';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -97,7 +97,11 @@ function download(content,extension,mime){const url=URL.createObjectURL(new Blob
 $('export-json').onclick=()=>{if(loadFailed){const raw=localStorage.getItem(KEY);if(raw)download(raw,'json','application/json');else toast('No saved data available.');return;}download(JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2),'json','application/json');};$('export-csv').onclick=()=>download(toCSV(data),'csv','text/csv;charset=utf-8');$('import-button').onclick=()=>$('import-file').click();
 $('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw Error('Backup is too large (maximum 20 MB).');const raw=await file.text(),incoming=file.name.toLowerCase().endsWith('.csv')?fromCSV(raw):validate(JSON.parse(raw));const counts=`${incoming.entries.length} macro entries, ${incoming.foods.length} foods, and ${incoming.weights.length} weigh-ins`;if(confirm(`Import ${counts}? This merges with your data. Matching IDs and weigh-in dates use the imported values.`)){const next=merge(data,incoming);if(loadFailed){localStorage.setItem(KEY,JSON.stringify(next));data=next;loadFailed=false;render();toast('Backup restored.');}else if(save(next))toast('Data imported.');closeTools();}}catch(err){toast(err.message||'Could not import this file.');}finally{e.target.value='';}};
 window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();if('serviceWorker' in navigator){
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();// iOS Safari can still dispatch native pinch gestures despite viewport settings.
+for(const type of ['gesturestart','gesturechange']){
+  document.addEventListener(type,e=>e.preventDefault(),{passive:false});
+}
+if('serviceWorker' in navigator){
   let hadController=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
     if(hadController)location.reload();

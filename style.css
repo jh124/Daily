@@ -92,3 +92,6 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 
 /* Match the calorie and protein units in dark mode, too. */
 [data-theme="dark"] .total strong span{color:#b0cba9}
+
+/* Keep Daily at a fixed visual scale while preserving one-finger scrolling. */
+html,body{touch-action:pan-x pan-y}
