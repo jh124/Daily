@@ -85,3 +85,7 @@ input[type="date"]::-webkit-datetime-edit{padding:0;min-width:0}
 [data-theme="dark"] .meal-serving{background-color:#1c2620}
 /* Keep the sun a text glyph, not a yellow emoji. */
 #theme-toggle span{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Symbol',sans-serif;font-variant-emoji:text}
+
+/* Crisp, neutral sun matching the original moon toggle. */
+[data-theme="dark"] #theme-toggle{color:#edf3eb}
+#theme-toggle span svg{display:block}
