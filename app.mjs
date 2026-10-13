@@ -1,4 +1,4 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV} from './core.mjs?v=34';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance} from './core.mjs?v=35';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -11,7 +11,7 @@ function toast(msg){$('toast-message').textContent=msg;$('undo-button').hidden=!
 let loadFailed=false;try{const stored=localStorage.getItem(KEY);if(stored){const restored=validate(JSON.parse(stored));data={...restored,foods:restored.foods??restored.meals??[]};}}catch{loadFailed=true;toast('Saved data could not be read. Export or restore a backup before making changes.');}
 function save(next,undoable=true){if(loadFailed){toast('Storage could not be read. Import a valid backup to restore it.');return false;}try{next=validate(next);next={...next,foods:next.foods??next.meals??[]};const before=JSON.stringify(data),after=JSON.stringify(next);localStorage.setItem(KEY,after);undoState=undoable?{before,after}:null;data=next;render();toast('Saved.');return true;}catch{toast('Could not save. Check values or export a backup and free up storage.');return false;}}
 $('undo-button').onclick=()=>{if(!undoState)return;try{if(localStorage.getItem(KEY)!==undoState.after){undoState=null;toast('Data changed elsewhere; undo is no longer available.');return;}if(save(JSON.parse(undoState.before),false))toast('Undone.');}catch{toast('Could not undo. Please try again.');}};
-const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const number=n=>new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(n);const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});const uid=()=>crypto.randomUUID();
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const formatter=new Intl.NumberFormat(undefined,{maximumFractionDigits:2}),number=n=>formatter.format(n);const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});const uid=()=>crypto.randomUUID();
 function empty(text){return `<div class="empty">${text}</div>`;}
 function entryMenu(id,label,frequent=false){
   const action=(key,title,extra='')=>'<button type="button" data-action="'+key+'" data-id="'+escape(id)+'"'+extra+'>'+title+'</button>';
@@ -156,36 +156,10 @@ function renderMacros(){const entries=data.entries.filter(r=>r.date===selected);
 $('foods').innerHTML=data.foods.length?data.foods.map(r=>`<div class="row"><div><div class="row-name">${escape(r.name)}</div><div class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</div></div><div class="row-actions"><select class="food-serving" aria-label="Servings of ${escape(r.name)}"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option></select><button class="text-button" data-action="add" data-id="${escape(r.id)}" aria-label="Add ${escape(r.name)} to today">Add</button>${entryMenu(r.id,r.name)}</div></div>`).join(''):empty('No saved foods.');
 $('entries').innerHTML=entries.length?[...entries].reverse().map(r=>`<div class="row"><div class="entry-content"><span class="row-name">${escape(r.name)}</span><span class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</span></div>${entryMenu(r.id,r.name,true)}</div>`).join(''):empty('No entries.');
 const days=new Map();for(const r of data.entries){const sums=days.get(r.date)||{calories:0,protein:0};sums.calories+=r.calories;sums.protein+=r.protein;days.set(r.date,sums);}const sorted=[...days].sort((a,b)=>b[0].localeCompare(a[0]));$('macro-history').innerHTML=sorted.length?`<table><thead><tr><th>Date</th><th>Calories</th><th>Protein</th></tr></thead><tbody>${sorted.map(([d,r])=>`<tr><td><button data-date="${d}">${dateLabel(d)}</button></td><td>${number(r.calories)} kcal</td><td>${number(r.protein)} g</td></tr>`).join('')}</tbody></table>`:empty('No history yet.');}
-// Short-window energy-balance estimate, not a physiological or long-term prediction.
-// Morning weights bracket calorie days: intake on the last weigh-in date is excluded.
-// Short-window energy balance; morning weigh-ins bracket completed calorie days.
-function estimateMaintenance(records, now=today()) {
-  const end=dayNumber(now), date=n=>new Date(n*86400000).toISOString().slice(0,10),totals=new Map();
-  for(const row of records.entries) totals.set(row.date,(totals.get(row.date)||0)+row.calories);
-  let logged=0;
-  while(logged<28&&(totals.get(date(end-logged-1))||0)>0) logged++;
-  const weights=records.weights.filter(r=>r.date>=date(end-logged)&&r.date<=now).sort((a,b)=>a.date.localeCompare(b.date));
-  const first=weights.length?dayNumber(weights[0].date):null,last=weights.length?dayNumber(weights.at(-1).date):null;
-  const span=weights.length?last-first:0,early=weights.filter(r=>dayNumber(r.date)<first+7).length,late=weights.filter(r=>dayNumber(r.date)>last-7).length;
-  const result={value:null,logged,count:weights.length,span,early,late,first:first===null?null:date(first),last:last===null?null:date(last),age:last===null?null:end-last};
-  const pending=detail=>({...result,detail});
-  if(logged<21) return pending(`Log ${21-logged} more consecutive calorie day${21-logged===1?'':'s'} to reach 21.`);
-  if(weights.length<10) return pending(`Add ${10-weights.length} more weigh-in${10-weights.length===1?'':'s'} within your logging window.`);
-  if(end-last>3) return pending('Add a recent weigh-in to update your estimate.');
-  if(span<21) return pending(`Keep weighing in: your weights need to span ${21-span} more day${21-span===1?'':'s'}.`);
-  if(early<2||late<2) return pending('Needs at least 2 weigh-ins in both the first and last week.');
-  const weekly=trend(weights),meanWeight=weights.reduce((s,r)=>s+r.weight,0)/weights.length;
-  if(weekly===null||Math.abs(weekly)>meanWeight*.01) return pending('Weight is changing too quickly for a useful estimate. Keep logging.');
-  let calories=0;
-  for(let day=first;day<last;day++) calories+=totals.get(date(day));
-  const intake=calories/span,estimate=intake-weekly*3500/7;
-  if(!Number.isFinite(estimate)||estimate<50) return pending('Check your calorie logs and weights before estimating.');
-  return {...result,value:Math.round(estimate/50)*50,intake,weekly,adjustment:-weekly*3500/7,detail:`Based on ${span} days of calories and ${weights.length} weigh-ins.`};
-}
 function renderMaintenance(){
   const e=estimateMaintenance(data),ready=e.value!==null;
   $('maintenance-value').innerHTML=(ready?'≈ '+number(e.value):'—')+'<span> kcal / day</span>';
-  $('maintenance-detail').textContent=e.detail;
+  $('maintenance-detail').textContent=e.detail+(ready&&e.lowDays?.length?' Check unusually low calorie logs on '+e.lowDays.slice(0,2).map(dateLabel).join(', ')+(e.lowDays.length>2?' and '+(e.lowDays.length-2)+' more day(s)':'')+'; those entries might be incomplete.':'');
   const targets=[['aggressive-cut',-500],['slow-cut',-250],['slow-bulk',250],['aggressive-bulk',500]];
   for(const [id,offset] of targets){const value=ready?e.value+offset:null;$(id+'-value').textContent=value!==null&&value>=1200?number(value)+' kcal':'—';}
   $('maintenance-target-note').textContent=ready?'Daily starting estimates: cuts subtract calories; bulks add them. Adjust to your actual trend. Targets below 1,200 kcal are not shown.':'Targets appear when your maintenance estimate is ready.';
