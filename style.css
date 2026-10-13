@@ -104,3 +104,20 @@ html,body{touch-action:pan-x pan-y}
 .weight-summary .trend-value{margin:0;font-size:clamp(24px,7.2vw,36px);line-height:1.1;letter-spacing:-1px;white-space:nowrap}
 .weight-summary .trend-value span{font-size:clamp(11px,3vw,14px);letter-spacing:0}
 .weight-summary p.muted{margin:0;font-size:11px;line-height:1.4}
+
+/* Row-level menus replace direct-delete controls and row-tap editing. */
+.entry-content{flex:1;min-width:0;padding:6px 0}
+.entry-menu-wrap{position:relative;display:inline-flex;align-items:center;justify-content:flex-end;flex-shrink:0}
+.menu-trigger{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:9px;background:transparent;color:var(--muted);padding:5px}
+.menu-trigger:hover,.menu-trigger[aria-expanded="true"]{background:#edf2e5;color:var(--ink)}
+.entry-menu{position:absolute;right:0;top:calc(100% - 1px);z-index:35;width:max-content;min-width:178px;max-width:min(250px,calc(100vw - 40px));padding:5px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px #24382e26;text-align:left}
+.entry-menu button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:12px 11px;font-size:12px;white-space:nowrap;color:var(--ink)}
+.entry-menu button:hover,.entry-menu button:focus-visible{background:#edf2e5}
+.entry-menu button.danger{color:#a0433c}
+#foods .row,#entries .row{position:relative}
+#foods .row:has(.entry-menu:not([hidden])),#entries .row:has(.entry-menu:not([hidden])),#weight-table tr:has(.entry-menu:not([hidden])){z-index:36}
+#weight-table{overflow-x:visible}
+#weight-table td:last-child{width:38px}
+#weight-table .menu-trigger{width:34px}
+[data-theme="dark"] .menu-trigger:hover,[data-theme="dark"] .menu-trigger[aria-expanded="true"],[data-theme="dark"] .entry-menu button:hover,[data-theme="dark"] .entry-menu button:focus-visible{background:#344437}
+[data-theme="dark"] .entry-menu button.danger{color:#f4a29b}
