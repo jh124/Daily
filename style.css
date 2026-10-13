@@ -107,6 +107,10 @@ html,body{touch-action:pan-x pan-y}
 
 /* Row-level menus replace direct-delete controls and row-tap editing. */
 .entry-content{flex:1;min-width:0;padding:6px 0}
+/* Keep the entry name and its macros on separate lines, with room to wrap long names. */
+#entries .entry-content .row-name,#entries .entry-content .row-detail{display:block}
+#entries .entry-content .row-name{line-height:1.35;overflow-wrap:anywhere}
+#entries .entry-content .row-detail{line-height:1.35}
 .entry-menu-wrap{position:relative;display:inline-flex;align-items:center;justify-content:flex-end;flex-shrink:0}
 .menu-trigger{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:9px;background:transparent;color:var(--muted);padding:5px}
 .menu-trigger:hover,.menu-trigger[aria-expanded="true"]{background:#edf2e5;color:var(--ink)}
