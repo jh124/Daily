@@ -124,3 +124,22 @@ html,body{touch-action:pan-x pan-y}
 #weight-table .menu-trigger{width:34px}
 [data-theme="dark"] .menu-trigger:hover,[data-theme="dark"] .menu-trigger[aria-expanded="true"],[data-theme="dark"] .entry-menu button:hover,[data-theme="dark"] .entry-menu button:focus-visible{background:#344437}
 [data-theme="dark"] .entry-menu button.danger{color:#f4a29b}
+
+/* A duplicate warning stays visible inside the frequent-food dialog. */
+.food-duplicate-notice{
+  display:block;
+  margin:0 0 12px;
+  padding:11px 13px;
+  border:1px solid #d8dfcc;
+  border-radius:10px;
+  background:#f2f4e9;
+  color:#354c37;
+  font-size:13px;
+  text-align:center;
+}
+.food-duplicate-notice[hidden]{display:none}
+[data-theme="dark"] .food-duplicate-notice{
+  background:#28372a;
+  border-color:#4b5e4b;
+  color:#e6f0df;
+}
