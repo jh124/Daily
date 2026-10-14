@@ -1,11 +1,11 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood} from './core.mjs?v=38';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood} from './core.mjs?v=39';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
 let weightUnit=preferences.weightUnit==='kg'?'kg':'lb';
 const displayWeight=pounds=>weightToUnit(pounds,weightUnit),internalWeight=value=>weightFromUnit(value,weightUnit);
 const weightNumber=pounds=>Number(displayWeight(pounds).toFixed(2));
-function updateWeightInputs(){for(const id of ['weight-input','edit-weight-value']){$(id).max=weightUnit==='kg'?'907.18':'2000';$(id).min='0.01';}document.querySelectorAll('[data-weight-unit]').forEach(el=>el.textContent=weightUnit);$('edit-weight-label').textContent='Weight ('+weightUnit+')';$('maintenance-energy-unit').textContent=weightUnit==='kg'?'7,700 kcal per kilogram':'3,500 kcal per pound';$('weight-input').placeholder=weightUnit==='kg'?'72.6':'160';}
+function updateWeightInputs(){for(const id of ['weight-input','edit-weight-value']){$(id).max=weightUnit==='kg'?'907.18':'2000';$(id).min='0.01';}document.querySelectorAll('[data-weight-unit]').forEach(el=>el.textContent=weightUnit);$('edit-weight-label').textContent='Weight ('+weightUnit+')';$('maintenance-energy-unit').textContent=weightUnit==='kg'?'7,700 kcal per kilogram':'3,500 kcal per pound';$('weight-input').placeholder='0';}
 function setWeightUnit(next){if(!['lb','kg'].includes(next)||weightUnit===next)return;weightUnit=next;$('weight-input').value='';updateWeightInputs();renderWeight();renderMaintenance();savePreferences();toast('Weight units: '+weightUnit);}
 let themeTaps=[];
 function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value,theme:document.documentElement.dataset.theme==='dark'?'dark':'light',weightUnit}));}catch{}}
