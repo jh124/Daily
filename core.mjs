@@ -1,6 +1,8 @@
 export const LB_PER_KG=2.2046226218487757;
 export const weightToUnit=(pounds,unit='lb')=>unit==='kg'?pounds/LB_PER_KG:pounds;
 export const weightFromUnit=(value,unit='lb')=>unit==='kg'?value*LB_PER_KG:value;
+// At least one macro must be positive when creating or editing records.
+export const hasNonzeroMacros=({calories,protein})=>calories>0||protein>0;
 // Duplicate frequent foods have the same name and macro values; IDs remain independent.
 export function isDuplicateFood(foods,candidate,excludeId=null){
   const name=candidate.name.trim().toLocaleLowerCase();
