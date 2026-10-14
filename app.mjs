@@ -1,4 +1,4 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood} from './core.mjs?v=37';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood} from './core.mjs?v=38';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -79,7 +79,7 @@ $('food-form').onsubmit=e=>{
   const food={id:editingFood||uid(),name,calories:+$('food-cal').value,protein:+$('food-protein').value};
   if(editingFood&&!data.foods.some(r=>r.id===editingFood)){toast('This food no longer exists.');return;}
   if(isDuplicateFood(data.foods,food,editingFood)){warnFoodDuplicate();return;}
-  const foods=editingFood?data.foods.map(r=>r.id===editingFood?food:r):[...data.foods,food];
+  const foods=editingFood?data.foods.map(r=>r.id===editingFood?food:r):[food,...data.foods];
   if(save({...data,foods})){
     $('food-dialog').close();
     toast(editingFood?'Frequent food updated.':'Frequent food saved.');
@@ -124,7 +124,7 @@ $('entries').onclick=e=>{
     }else{
       const food={id:uid(),name,calories:entry.calories,protein:entry.protein};
       if(isDuplicateFood(data.foods,food)){toast('Already in frequent foods',5000);return;}
-      if(save({...data,foods:[...data.foods,food]}))toast('Added to frequent foods.');
+      if(save({...data,foods:[food,...data.foods]}))toast('Added to frequent foods.');
     }
   }
 };
