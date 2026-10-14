@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cutoff,validDate,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,LB_PER_KG} from '../core.mjs';
+import {cutoff,validDate,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,LB_PER_KG,isDuplicateFood} from '../core.mjs';
 const day=n=>new Date(Date.UTC(2026,8,15+n)).toISOString().slice(0,10);
 const now=day(28);
 const records=(weekly=0)=>({
@@ -112,4 +112,14 @@ test('merged mixed-unit imports do not duplicate dates or distort maintenance',(
 test('unknown units are rejected rather than silently misread',()=>{
   assert.throws(()=>validate({...records(),weightUnit:'stone'}),/unit/i);
   assert.throws(()=>fromCSV(toCSV(records(),'kg').replaceAll('"kg"','"stone"')),/unit/i);
+});
+
+test('frequent foods reject matching name, calories and protein but allow variants',()=>{
+  const foods=[{id:'one',name:'Chocolate Milk',calories:500,protein:20}];
+  assert.equal(isDuplicateFood(foods,{name:' chocolate milk ',calories:500,protein:20}),true);
+  assert.equal(isDuplicateFood(foods,{name:'Chocolate Milk',calories:501,protein:20}),false);
+  assert.equal(isDuplicateFood(foods,{name:'Chocolate Milk',calories:500,protein:21}),false);
+  assert.equal(isDuplicateFood(foods,{name:'Other Milk',calories:500,protein:20}),false);
+  assert.equal(isDuplicateFood(foods,{name:'Chocolate Milk',calories:500,protein:20},'one'),false);
+  assert.equal(isDuplicateFood([...foods,{id:'two',name:'Chocolate Milk',calories:500,protein:20}],{name:'Chocolate Milk',calories:500,protein:20},'two'),true);
 });
