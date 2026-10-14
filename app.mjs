@@ -1,4 +1,4 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood} from './core.mjs?v=39';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros} from './core.mjs?v=40';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -47,9 +47,10 @@ function selectDay(d){if(d>today())return;selected=d;$('macro-date').value=d;ren
 $('macro-date').onchange=()=>{if($('macro-date').value)selectDay($('macro-date').value);};
 function shiftDay(n){const d=new Date(selected+'T12:00:00');d.setDate(d.getDate()+n);selectDay(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);}
 $('prev-day').onclick=()=>shiftDay(-1);$('next-day').onclick=()=>shiftDay(1);
-$('macro-form').onsubmit=e=>{e.preventDefault();if($('entry-cal').value===''&&$('entry-protein').value===''){toast('Enter calories or protein.');return;}const entry={id:uid(),date:selected,name:$('entry-name').value.trim()||'Quick entry',calories:+$('entry-cal').value,protein:+$('entry-protein').value};if(save({...data,entries:[...data.entries,entry]})){e.target.reset();toast('Macros added.');}};
-function warnFoodDuplicate(){
+$('macro-form').onsubmit=e=>{e.preventDefault();if($('entry-cal').value===''&&$('entry-protein').value===''){toast('Enter calories or protein.');return;}const entry={id:uid(),date:selected,name:$('entry-name').value.trim()||'Quick entry',calories:+$('entry-cal').value,protein:+$('entry-protein').value};if(!hasNonzeroMacros(entry)){toast('Calories or protein must be greater than 0.');return;}if(save({...data,entries:[...data.entries,entry]})){e.target.reset();toast('Macros added.');}};
+function showFoodNotice(message){
   clearTimeout(foodDuplicateTimer);
+  $('food-duplicate-notice').textContent=message;
   $('food-duplicate-notice').hidden=false;
   foodDuplicateTimer=setTimeout(()=>{$('food-duplicate-notice').hidden=true;},5000);
 }
@@ -78,7 +79,8 @@ $('food-form').onsubmit=e=>{
   if(!name){toast('Give your food a name.');$('food-name').focus();return;}
   const food={id:editingFood||uid(),name,calories:+$('food-cal').value,protein:+$('food-protein').value};
   if(editingFood&&!data.foods.some(r=>r.id===editingFood)){toast('This food no longer exists.');return;}
-  if(isDuplicateFood(data.foods,food,editingFood)){warnFoodDuplicate();return;}
+  if(!hasNonzeroMacros(food)){showFoodNotice('Calories or protein must be greater than 0.');return;}
+  if(isDuplicateFood(data.foods,food,editingFood)){showFoodNotice('Already in frequent foods');return;}
   const foods=editingFood?data.foods.map(r=>r.id===editingFood?food:r):[food,...data.foods];
   if(save({...data,foods})){
     $('food-dialog').close();
@@ -96,6 +98,7 @@ $('foods').onclick=e=>{
     if(![.5,1,2,3,4,5].includes(factor))return;
     const entry={...food,id:uid(),date:today(),name:factor===1?food.name:food.name+' ('+factor+'×)',calories:Math.round(food.calories*factor*100)/100,protein:Math.round(food.protein*factor*100)/100};
     entry.name=entry.name.slice(0,120);
+    if(!hasNonzeroMacros(entry)){toast('Calories or protein must be greater than 0.');return;}
     if(save({...data,foods:[food,...data.foods.filter(r=>r.id!==food.id)],entries:[...data.entries,entry]}))toast(food.name+' added to today.');
   }else if(b.dataset.action==='edit'){
     openFoodDialog(food);
@@ -118,6 +121,7 @@ $('entries').onclick=e=>{
     $('edit-entry-date').textContent=dateLabel(entry.date);
     $('entry-dialog').showModal();
   }else if(b.dataset.action==='frequent'){
+    if(!hasNonzeroMacros(entry)){toast('Calories or protein must be greater than 0.');return;}
     const name=entry.name.trim();
     if(!name||name==='Quick entry'){
       openFoodDialog(null,entry);
@@ -129,7 +133,7 @@ $('entries').onclick=e=>{
   }
 };
 $('close-entry').onclick=()=>$('entry-dialog').close();
-$('edit-entry-form').onsubmit=e=>{e.preventDefault();const existing=data.entries.find(r=>r.id===editingEntry);if(!existing){$('entry-dialog').close();toast('This entry no longer exists.');return;}const edited={...existing,name:$('edit-entry-name').value.trim()||'Quick entry',calories:Number($('edit-entry-cal').value),protein:Number($('edit-entry-protein').value)};if(save({...data,entries:data.entries.map(r=>r.id===editingEntry?edited:r)})){$('entry-dialog').close();editingEntry=null;toast('Entry updated.');}};
+$('edit-entry-form').onsubmit=e=>{e.preventDefault();const existing=data.entries.find(r=>r.id===editingEntry);if(!existing){$('entry-dialog').close();toast('This entry no longer exists.');return;}const edited={...existing,name:$('edit-entry-name').value.trim()||'Quick entry',calories:Number($('edit-entry-cal').value),protein:Number($('edit-entry-protein').value)};if(!hasNonzeroMacros(edited)){toast('Calories or protein must be greater than 0.');return;}if(save({...data,entries:data.entries.map(r=>r.id===editingEntry?edited:r)})){$('entry-dialog').close();editingEntry=null;toast('Entry updated.');}};
 $('macro-history').onclick=e=>{const b=e.target.closest('button');if(b){selectDay(b.dataset.date);window.scrollTo({top:0,behavior:'smooth'});}};
 $('weight-table').onclick=e=>{
   const b=e.target.closest('button');if(!b)return;
