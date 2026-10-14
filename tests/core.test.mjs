@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cutoff,validDate,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,LB_PER_KG,isDuplicateFood} from '../core.mjs';
+import {cutoff,validDate,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,LB_PER_KG,isDuplicateFood,hasNonzeroMacros} from '../core.mjs';
 const day=n=>new Date(Date.UTC(2026,8,15+n)).toISOString().slice(0,10);
 const now=day(28);
 const records=(weekly=0)=>({
@@ -122,4 +122,20 @@ test('frequent foods reject matching name, calories and protein but allow varian
   assert.equal(isDuplicateFood(foods,{name:'Other Milk',calories:500,protein:20}),false);
   assert.equal(isDuplicateFood(foods,{name:'Chocolate Milk',calories:500,protein:20},'one'),false);
   assert.equal(isDuplicateFood([...foods,{id:'two',name:'Chocolate Milk',calories:500,protein:20}],{name:'Chocolate Milk',calories:500,protein:20},'two'),true);
+});
+
+test('saving macro records requires a positive calorie or protein value',()=>{
+  assert.equal(hasNonzeroMacros({calories:0,protein:0}),false);
+  assert.equal(hasNonzeroMacros({calories:0,protein:30}),true);
+  assert.equal(hasNonzeroMacros({calories:500,protein:0}),true);
+  assert.equal(hasNonzeroMacros({calories:0.1,protein:0}),true);
+  assert.equal(hasNonzeroMacros({calories:0,protein:0.1}),true);
+});
+test('legacy data containing zero-valued records can still be read',()=>{
+  const d=records();
+  d.entries.push({id:'legacy-zero-log',date:day(0),name:'Old entry',calories:0,protein:0});
+  d.foods.push({id:'legacy-zero-food',name:'Old food',calories:0,protein:0});
+  const restored=validate(d);
+  assert.equal(restored.entries.at(-1).calories,0);
+  assert.equal(restored.foods.at(-1).protein,0);
 });
