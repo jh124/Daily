@@ -1,6 +1,11 @@
 export const LB_PER_KG=2.2046226218487757;
 export const weightToUnit=(pounds,unit='lb')=>unit==='kg'?pounds/LB_PER_KG:pounds;
 export const weightFromUnit=(value,unit='lb')=>unit==='kg'?value*LB_PER_KG:value;
+// Duplicate frequent foods have the same name and macro values; IDs remain independent.
+export function isDuplicateFood(foods,candidate,excludeId=null){
+  const name=candidate.name.trim().toLocaleLowerCase();
+  return foods.some(food=>food.id!==excludeId&&food.name.trim().toLocaleLowerCase()===name&&food.calories===candidate.calories&&food.protein===candidate.protein);
+}
 export const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 export const dayNumber=d=>Date.UTC(...d.split('-').map((v,i)=>i===1?+v-1:+v))/86400000;
 export const validDate=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&new Date(dayNumber(d)*86400000).toISOString().slice(0,10)===d;
