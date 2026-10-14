@@ -1,9 +1,44 @@
+export const LB_PER_KG=2.2046226218487757;
+export const weightToUnit=(pounds,unit='lb')=>unit==='kg'?pounds/LB_PER_KG:pounds;
+export const weightFromUnit=(value,unit='lb')=>unit==='kg'?value*LB_PER_KG:value;
 export const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 export const dayNumber=d=>Date.UTC(...d.split('-').map((v,i)=>i===1?+v-1:+v))/86400000;
 export const validDate=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&new Date(dayNumber(d)*86400000).toISOString().slice(0,10)===d;
 export function cutoff(months,now=today(),calendar=false){const [y,m,d]=now.split('-').map(Number);const start=new Date(y,m-1-months+(calendar?1:0),1);if(!calendar)start.setDate(Math.min(d,new Date(start.getFullYear(),start.getMonth()+1,0).getDate()));return `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;}
 export function trend(rows){if(rows.length<2)return null;const x=rows.map(r=>dayNumber(r.date)),y=rows.map(r=>r.weight),mx=x.reduce((a,b)=>a+b)/x.length,my=y.reduce((a,b)=>a+b)/y.length;const den=x.reduce((s,v)=>s+(v-mx)**2,0);return den?7*x.reduce((s,v,i)=>s+(v-mx)*(y[i]-my),0)/den:null;}
-export function validate(data){if(!data||data.app!=='daily-macros-weight'||data.version!==1)throw Error('Choose a backup exported from this app.');const foods=data.foods??data.meals;for(const [key,value] of [['entries',data.entries],['foods',foods],['weights',data.weights]])if(!Array.isArray(value))throw Error('Backup is missing '+key+'.');const numeric=(n,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=max;const ids=new Set();for(const r of [...data.entries,...foods]){if(typeof r.id!=='string'||!r.id||r.id.length>200||ids.has(r.id))throw Error('Invalid or duplicate record ID.');ids.add(r.id);if(typeof r.name!=='string'||r.name.length>120||!numeric(r.calories,100000)||!numeric(r.protein,10000))throw Error('Invalid food or macro record.');}for(const r of data.entries)if(!validDate(r.date)||r.date>today())throw Error('Invalid entry date.');const dates=new Set();for(const r of data.weights){if(!validDate(r.date)||r.date>today()||!numeric(r.weight,2000)||r.weight===0||dates.has(r.date))throw Error('Invalid or duplicate weigh-in date.');dates.add(r.date);}const {meals,...rest}=data;return {...rest,foods};}
+// Local storage always uses pounds. An exported backup may specify kg or lb;
+// legacy backups without a weightUnit are pounds. Normalize at the import boundary.
+export function validate(data){
+  if(!data||data.app!=='daily-macros-weight'||data.version!==1)throw Error('Choose a backup exported from this app.');
+  const foods=data.foods??data.meals,unit=data.weightUnit??'lb';
+  if(!['lb','kg'].includes(unit))throw Error('Unknown weight unit in backup.');
+  for(const [key,value] of [['entries',data.entries],['foods',foods],['weights',data.weights]])
+    if(!Array.isArray(value))throw Error('Backup is missing '+key+'.');
+  const numeric=(n,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=max;
+  const ids=new Set();
+  for(const r of [...data.entries,...foods]){
+    if(typeof r.id!=='string'||!r.id||r.id.length>200||ids.has(r.id))throw Error('Invalid or duplicate record ID.');
+    ids.add(r.id);
+    if(typeof r.name!=='string'||r.name.length>120||!numeric(r.calories,100000)||!numeric(r.protein,10000))
+      throw Error('Invalid food or macro record.');
+  }
+  for(const r of data.entries)if(!validDate(r.date)||r.date>today())throw Error('Invalid entry date.');
+  const dates=new Set(),weights=[];
+  for(const r of data.weights){
+    const pounds=weightFromUnit(r.weight,unit);
+    if(!validDate(r.date)||r.date>today()||!numeric(pounds,2000)||pounds===0||dates.has(r.date))
+      throw Error('Invalid or duplicate weigh-in date.');
+    dates.add(r.date);
+    weights.push({...r,weight:pounds});
+  }
+  const {meals,weightUnit,...rest}=data;
+  return {...rest,foods,weights};
+}
+export function exportBackup(data,unit='lb'){
+  if(!['lb','kg'].includes(unit))throw Error('Invalid export unit.');
+  const canonical=validate(data);
+  return {...canonical,weightUnit:unit,weights:canonical.weights.map(r=>({...r,weight:+weightToUnit(r.weight,unit).toFixed(8)}))};
+}
 // Short-window energy-balance estimate, not a physiological or long-term prediction.
 // Morning weigh-ins bracket completed calorie days; the last morning's food is excluded.
 export function estimateMaintenance(records, now=today()) {
@@ -35,5 +70,38 @@ export function estimateMaintenance(records, now=today()) {
     return {...result,value:Math.round(estimate/50)*50,intake,weekly,adjustment:-weekly*3500/7,lowDays,detail:`Based on ${span} days of calories and ${weights.length} weigh-ins.`};
 }
 export function merge(current,incoming){current=validate(current);incoming=validate(incoming);const by=(a,b,k)=>[...new Map([...a,...b].map(r=>[r[k],r])).values()];return {...current,entries:by(current.entries,incoming.entries,'id'),foods:by(current.foods,incoming.foods,'id'),weights:by(current.weights,incoming.weights,'date')};}
-export function toCSV(data){const rows=[['type','id','date','name','calories','protein','weight']];data.entries.forEach(r=>rows.push(['entry',r.id,r.date,r.name,r.calories,r.protein,'']));data.foods.forEach(r=>rows.push(['food',r.id,'',r.name,r.calories,r.protein,'']));data.weights.forEach(r=>rows.push(['weight','',r.date,'','','',r.weight]));return rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n');}
-export function fromCSV(text){const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}else cell+=c;}if(quoted)throw Error('Incomplete CSV file.');if(cell||row.length){row.push(cell);rows.push(row);}if(rows[0]?.length)rows[0][0]=rows[0][0].replace(/^\uFEFF/,'');if(rows.shift()?.join(',')!=='type,id,date,name,calories,protein,weight')throw Error('Choose a CSV exported from this app.');const out={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};for(const r of rows){if(r.length===1&&r[0]==='')continue;if(r.length!==7)throw Error('Invalid CSV row.');const [type,id,date,name,calories,protein,weight]=r;if(type==='entry')out.entries.push({id,date,name,calories:+calories,protein:+protein});else if((type==='food'||type==='meal'))out.foods.push({id,name,calories:+calories,protein:+protein});else if(type==='weight')out.weights.push({date,weight:+weight});else throw Error('Unknown CSV record.');}return validate(out);}
+export function toCSV(data,unit='lb'){
+  const output=exportBackup(data,unit);
+  const rows=[['type','id','date','name','calories','protein','weight','weight_unit']];
+  output.entries.forEach(r=>rows.push(['entry',r.id,r.date,r.name,r.calories,r.protein,'',unit]));
+  output.foods.forEach(r=>rows.push(['food',r.id,'',r.name,r.calories,r.protein,'',unit]));
+  output.weights.forEach(r=>rows.push(['weight','',r.date,'','','',r.weight,unit]));
+  return rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n');
+}
+export function fromCSV(text){
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
+    else if(c===','&&!quoted){row.push(cell);cell='';}
+    else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}
+    else cell+=c;
+  }
+  if(quoted)throw Error('Incomplete CSV file.');
+  if(cell||row.length){row.push(cell);rows.push(row);}
+  if(rows[0]?.length)rows[0][0]=rows[0][0].replace(/^\uFEFF/,'');
+  const header=rows.shift()?.join(','),legacy=header==='type,id,date,name,calories,protein,weight';
+  if(!legacy&&header!=='type,id,date,name,calories,protein,weight,weight_unit')throw Error('Choose a CSV exported from this app.');
+  const out={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};
+  for(const r of rows){
+    if(r.length===1&&r[0]==='')continue;
+    if(r.length!==(legacy?7:8))throw Error('Invalid CSV row.');
+    const [type,id,date,name,calories,protein,weight,unit]=r;
+    if(!legacy&&!['lb','kg'].includes(unit))throw Error('Unknown weight unit in CSV.');
+    if(type==='entry')out.entries.push({id,date,name,calories:+calories,protein:+protein});
+    else if(type==='food'||type==='meal')out.foods.push({id,name,calories:+calories,protein:+protein});
+    else if(type==='weight')out.weights.push({date,weight:weightFromUnit(+weight,legacy?'lb':unit)});
+    else throw Error('Unknown CSV record.');
+  }
+  return validate(out);
+}

@@ -1,12 +1,18 @@
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance} from './core.mjs?v=35';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup} from './core.mjs?v=36';
 const $=id=>document.getElementById(id),KEY='daily-macros-weight-v1';let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null;
 const PREF_KEY=KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
-function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value,theme:document.documentElement.dataset.theme==='dark'?'dark':'light'}));}catch{}}
+let weightUnit=preferences.weightUnit==='kg'?'kg':'lb';
+const displayWeight=pounds=>weightToUnit(pounds,weightUnit),internalWeight=value=>weightFromUnit(value,weightUnit);
+const weightNumber=pounds=>Number(displayWeight(pounds).toFixed(2));
+function updateWeightInputs(){for(const id of ['weight-input','edit-weight-value']){$(id).max=weightUnit==='kg'?'907.18':'2000';$(id).min='0.01';}document.querySelectorAll('[data-weight-unit]').forEach(el=>el.textContent=weightUnit);$('edit-weight-label').textContent='Weight ('+weightUnit+')';$('maintenance-energy-unit').textContent=weightUnit==='kg'?'7,700 kcal per kilogram':'3,500 kcal per pound';$('weight-input').placeholder=weightUnit==='kg'?'72.6':'160';}
+function setWeightUnit(next){if(!['lb','kg'].includes(next)||weightUnit===next)return;weightUnit=next;$('weight-input').value='';updateWeightInputs();renderWeight();renderMaintenance();savePreferences();toast('Weight units: '+weightUnit);}
+let themeTaps=[];
+function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value,theme:document.documentElement.dataset.theme==='dark'?'dark':'light',weightUnit}));}catch{}}
 
 function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-toggle').querySelector('span').innerHTML=dark?'<svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true" fill="currentColor"><circle cx="12" cy="12" r="4.4"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.58 4.58l2.12 2.12M17.3 17.3l2.12 2.12M19.42 4.58 17.3 6.7M6.7 17.3l-2.12 2.12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>':'☾';$('theme-toggle').setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
 setTheme(preferences.theme==='dark'?'dark':'light');
-$('theme-toggle').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');savePreferences();};
+$('theme-toggle').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');savePreferences();if(page!=='weight'){themeTaps=[];return;}const now=performance.now();themeTaps=themeTaps.filter(t=>now-t<=3000);themeTaps.push(now);if(themeTaps.length>=5){themeTaps=[];setWeightUnit(weightUnit==='lb'?'kg':'lb');}};
 function toast(msg){$('toast-message').textContent=msg;$('undo-button').hidden=!undoState;$('toast').classList.add('show');clearTimeout(timer);timer=setTimeout(()=>{$('toast').classList.remove('show');undoState=null;$('undo-button').hidden=true;},undoState?5000:4000);}
 let loadFailed=false;try{const stored=localStorage.getItem(KEY);if(stored){const restored=validate(JSON.parse(stored));data={...restored,foods:restored.foods??restored.meals??[]};}}catch{loadFailed=true;toast('Saved data could not be read. Export or restore a backup before making changes.');}
 function save(next,undoable=true){if(loadFailed){toast('Storage could not be read. Import a valid backup to restore it.');return false;}try{next=validate(next);next={...next,foods:next.foods??next.meals??[]};const before=JSON.stringify(data),after=JSON.stringify(next);localStorage.setItem(KEY,after);undoState=undoable?{before,after}:null;data=next;render();toast('Saved.');return true;}catch{toast('Could not save. Check values or export a backup and free up storage.');return false;}}
@@ -35,7 +41,7 @@ $('macro-date').value=selected;$('weight-date').value=today();$('macro-date').ma
 $('chart-range').innerHTML='<option value="week">1 week</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1} month${i?'s':''}</option>`).join('')+'<option value="all">All data</option>';$('chart-range').value=['week','all',...Array.from({length:12},(_,i)=>String(i+1))].includes(preferences.chartRange)?preferences.chartRange:'1';
 $('trend-range').innerHTML=Array.from({length:12},(_,i)=>`<option value="${i+1}">Last ${i+1} month${i?'s':''}</option>`).join('');
 $('trend-range').value=/^(?:[1-9]|1[0-2])$/.test(preferences.trendRange)?preferences.trendRange:'1';
-function switchPage(next){const pages=['macro','weight','maintenance'];page=next;$('nav-pill').style.transform=`translateX(${pages.indexOf(next)*100}%)`;for(const p of pages){$(p+'-page').hidden=p!==next;$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();savePreferences();}
+function switchPage(next){themeTaps=[];const pages=['macro','weight','maintenance'];page=next;$('nav-pill').style.transform=`translateX(${pages.indexOf(next)*100}%)`;for(const p of pages){$(p+'-page').hidden=p!==next;$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();savePreferences();}
 for(const p of ['macro','weight','maintenance'])$(p+'-tab').onclick=()=>switchPage(p);
 function selectDay(d){if(d>today())return;selected=d;$('macro-date').value=d;render();}
 $('macro-date').onchange=()=>{if($('macro-date').value)selectDay($('macro-date').value);};
@@ -71,7 +77,7 @@ $('food-form').onsubmit=e=>{
     toast(editingFood?'Frequent food updated.':'Frequent food saved.');
   }
 };
-$('weight-form').onsubmit=e=>{e.preventDefault();const date=$('weight-date').value,weight=+$('weight-input').value;if(date>today()||weight<=0){toast('Choose today or a past date and a positive weight.');return;}const next={...data,weights:[...data.weights.filter(r=>r.date!==date),{date,weight}]};if(save(next)){$('weight-input').value='';toast('Weigh-in saved.');}};
+$('weight-form').onsubmit=e=>{e.preventDefault();const date=$('weight-date').value,weight=internalWeight(+$('weight-input').value);if(date>today()||weight<=0||weight>2000){toast('Choose today or a past date and a positive weight.');return;}const next={...data,weights:[...data.weights.filter(r=>r.date!==date),{date,weight}]};if(save(next)){$('weight-input').value='';toast('Weigh-in saved.');}};
 $('foods').onclick=e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.action==='menu'){toggleEntryMenu(b);return;}
@@ -128,7 +134,7 @@ $('weight-table').onclick=e=>{
     editingWeightDate=date;
     $('edit-weight-date').value=date;
     $('edit-weight-date').max=today();
-    $('edit-weight-value').value=record.weight;
+    $('edit-weight-value').value=weightNumber(record.weight);
     $('edit-weight-dialog').showModal();
   }
 };
@@ -139,8 +145,8 @@ $('edit-weight-form').onsubmit=e=>{
   if(!editingWeightDate||!data.weights.some(r=>r.date===editingWeightDate)){
     $('edit-weight-dialog').close();toast('This weigh-in no longer exists.');return;
   }
-  const date=$('edit-weight-date').value,weight=Number($('edit-weight-value').value);
-  if(!date||date>today()||!Number.isFinite(weight)||weight<=0){
+  const date=$('edit-weight-date').value,entered=Number($('edit-weight-value').value),existing=data.weights.find(r=>r.date===editingWeightDate);const weight=existing&&entered===weightNumber(existing.weight)?existing.weight:internalWeight(entered);
+  if(!date||date>today()||!Number.isFinite(weight)||weight<=0||weight>2000){
     toast('Choose a valid date and positive weight.');return;
   }
   if(date!==editingWeightDate&&data.weights.some(r=>r.date===date)){
@@ -170,29 +176,60 @@ function renderMaintenance(){
   $('maintenance-coverage').textContent=e.count?`First week: ${e.early} · last week: ${e.late} weigh-ins (2 each needed).`:'Regular weigh-ins are needed at both ends of the period.';
   $('maintenance-freshness').textContent=e.last?`Latest: ${dateLabel(e.last)}${e.age>3?' · add a fresh weigh-in':''}`:'No weigh-ins in the current calorie-logging window.';
   $('maintenance-intake').textContent=ready?number(Math.round(e.intake))+' kcal / day':'—';
-  $('maintenance-trend').textContent=ready?(e.weekly>0?'+':'')+number(Math.abs(e.weekly)<.005?0:e.weekly)+' lb / week':'—';
+  $('maintenance-trend').textContent=ready?(e.weekly>0?'+':'')+number(Math.abs(displayWeight(e.weekly))<.005?0:displayWeight(e.weekly))+' '+weightUnit+' / week':'—';
   $('maintenance-adjustment').textContent=ready?(e.adjustment>=0?'+':'−')+number(Math.round(Math.abs(e.adjustment)))+' kcal / day':'—';
   $('maintenance-calculation-note').textContent=ready?(Math.abs(e.weekly)<.005?'Your weight is approximately stable, so maintenance is close to your average intake.':e.weekly>0?'Your weight trend is rising, so the estimate subtracts energy being stored.':'Your weight trend is falling, so the estimate adds energy being supplied by your body.'):'The breakdown appears once there is enough recent data.';
 }
 
-function renderWeight(){const all=[...data.weights].sort((a,b)=>a.date.localeCompare(b.date));const recent=all.filter(r=>r.date<=today()&&dayNumber(r.date)>=dayNumber(today())-6);const average=recent.length>=2?recent.reduce((sum,r)=>sum+r.weight,0)/recent.length:null;$('average-value').innerHTML=(average===null?'—':number(average))+'<span> lb</span>';$('average-detail').textContent=average===null?'Needs 2 weigh-ins in the past 7 days.':`${recent.length} weigh-ins · past 7 days`;const latest=all.at(-1);$('latest-value').innerHTML=(latest?number(latest.weight):'—')+'<span> lb</span>';$('latest-detail').textContent=latest?dateLabel(latest.date):'No weigh-ins yet.';const start=cutoff(Number($('trend-range').value)),rows=all.filter(r=>r.date>=start&&r.date<=today()),change=trend(rows);$('trend-value').innerHTML=(change===null?'—':(change>0?'+':'')+number(Math.abs(change)<.005?0:change))+'<span> lb / week</span>';$('trend-detail').textContent=change===null?'Needs 2 weigh-ins in this period.':`Based on ${rows.length} weigh-ins`;
-const highest=all.reduce((best,r)=>!best||r.weight>best.weight?r:best,null),lowest=all.reduce((best,r)=>!best||r.weight<best.weight?r:best,null);
-$('highest-weight-value').innerHTML=(highest?number(highest.weight):'—')+'<span> lb</span>';
-$('highest-weight-detail').textContent=highest?dateLabel(highest.date):'No weigh-ins yet.';
-$('lowest-weight-value').innerHTML=(lowest?number(lowest.weight):'—')+'<span> lb</span>';
-$('lowest-weight-detail').textContent=lowest?dateLabel(lowest.date):'No weigh-ins yet.';
-$('weight-table').innerHTML=all.length?`<table><thead><tr><th>Date</th><th>Weight</th><th></th></tr></thead><tbody>${[...all].reverse().map(r=>`<tr><td>${dateLabel(r.date)}</td><td>${number(r.weight)} lb</td><td>${entryMenu(r.date,dateLabel(r.date)+' weigh-in')}</td></tr>`).join('')}</tbody></table>`:empty('No weigh-ins.');
-const range=$('chart-range').value;let min=range==='all'?'0000-00-00':range==='week'?new Date((dayNumber(today())-6)*86400000).toISOString().slice(0,10):cutoff(+range);const plot=all.filter(r=>r.date>=min&&r.date<=today());drawChart(plot,min);}
-function drawChart(rows,min){if(!rows.length){$('chart').innerHTML=empty('No weigh-ins in this range.');return;}const W=440,H=240,L=45,R=15,T=20,B=34,values=rows.map(r=>r.weight);let low=Math.floor(Math.min(...values)-1),high=Math.ceil(Math.max(...values)+1);if(high-low<4){low-=1;high+=1;}const x0=dayNumber(min==='0000-00-00'?rows[0].date:min),x1=Math.max(dayNumber(today()),x0+1),x=d=>L+(dayNumber(d)-x0)/(x1-x0)*(W-L-R),y=v=>T+(high-v)/(high-low)*(H-T-B);let grid='';for(let i=0;i<5;i++){let v=low+(high-low)*i/4;grid+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e7eade" stroke-dasharray="3 4"/><text x="${L-9}" y="${y(v)+4}" text-anchor="end">${number(v)}</text>`;}const pts=rows.map(r=>`${x(r.date)},${y(r.weight)}`).join(' ');const path=`M ${x(rows[0].date)},${H-B} L ${pts.replaceAll(' ',' L ')} L ${x(rows.at(-1).date)},${H-B} Z`;
-$('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight chart with ${rows.length} weigh-ins"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a7c88b" stop-opacity=".35"/><stop offset="1" stop-color="#a7c88b" stop-opacity=".01"/></linearGradient></defs>${grid}<path d="${path}" fill="url(#fill)"/><polyline points="${pts}" fill="none" stroke="#719752" stroke-width="2" stroke-linejoin="round"/>${rows.map(r=>`<circle tabindex="0" role="button" aria-label="${dateLabel(r.date)}, ${number(r.weight)} pounds" data-date="${r.date}" cx="${x(r.date)}" cy="${y(r.weight)}" r="4.5" fill="#719752" stroke="white" stroke-width="2"><title>${dateLabel(r.date)} · ${number(r.weight)} lb</title></circle>`).join('')}<text x="${L}" y="${H-6}">${new Date(x0*86400000).toLocaleDateString(undefined,{month:'short',day:'numeric',...(new Date(x0*86400000).getUTCFullYear()!==Number(today().slice(0,4))?{year:'numeric'}:{}),timeZone:'UTC'})}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${dateLabel(today())}</text></svg><div class="chart-selection" id="chart-selection">${dateLabel(rows.at(-1).date)} · ${number(rows.at(-1).weight)} lb</div>`;
-const select=e=>{const d=e.target.dataset.date;if(d){const r=rows.find(r=>r.date===d);$('chart-selection').textContent=`${dateLabel(d)} · ${number(r.weight)} lb`;}};$('chart').onclick=select;$('chart').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(e);}};}
+function renderWeight(){
+  const all=[...data.weights].sort((a,b)=>a.date.localeCompare(b.date));
+  const recent=all.filter(r=>r.date<=today()&&dayNumber(r.date)>=dayNumber(today())-6);
+  const average=recent.length>=2?recent.reduce((sum,r)=>sum+r.weight,0)/recent.length:null;
+  $('average-value').innerHTML=(average===null?'—':number(displayWeight(average)))+'<span> '+weightUnit+'</span>';
+  $('average-detail').textContent=average===null?'Needs 2 weigh-ins in the past 7 days.':`${recent.length} weigh-ins · past 7 days`;
+  const latest=all.at(-1);
+  $('latest-value').innerHTML=(latest?number(displayWeight(latest.weight)):'—')+'<span> '+weightUnit+'</span>';
+  $('latest-detail').textContent=latest?dateLabel(latest.date):'No weigh-ins yet.';
+  const start=cutoff(Number($('trend-range').value)),rows=all.filter(r=>r.date>=start&&r.date<=today()),change=trend(rows);
+  $('trend-value').innerHTML=(change===null?'—':(change>0?'+':'')+number(Math.abs(displayWeight(change))<.005?0:displayWeight(change)))+'<span> '+weightUnit+' / week</span>';
+  $('trend-detail').textContent=change===null?'Needs 2 weigh-ins in this period.':`Based on ${rows.length} weigh-ins`;
+  const highest=all.reduce((best,r)=>!best||r.weight>best.weight?r:best,null);
+  const lowest=all.reduce((best,r)=>!best||r.weight<best.weight?r:best,null);
+  $('highest-weight-value').innerHTML=(highest?number(displayWeight(highest.weight)):'—')+'<span> '+weightUnit+'</span>';
+  $('highest-weight-detail').textContent=highest?dateLabel(highest.date):'No weigh-ins yet.';
+  $('lowest-weight-value').innerHTML=(lowest?number(displayWeight(lowest.weight)):'—')+'<span> '+weightUnit+'</span>';
+  $('lowest-weight-detail').textContent=lowest?dateLabel(lowest.date):'No weigh-ins yet.';
+  $('weight-table').innerHTML=all.length?`<table><thead><tr><th>Date</th><th>Weight</th><th></th></tr></thead><tbody>${[...all].reverse().map(r=>`<tr><td>${dateLabel(r.date)}</td><td>${number(displayWeight(r.weight))} ${weightUnit}</td><td>${entryMenu(r.date,dateLabel(r.date)+' weigh-in')}</td></tr>`).join('')}</tbody></table>`:empty('No weigh-ins.');
+  $('chart-unit').textContent=weightUnit;
+  const range=$('chart-range').value;
+  const min=range==='all'?'0000-00-00':range==='week'?new Date((dayNumber(today())-6)*86400000).toISOString().slice(0,10):cutoff(+range);
+  drawChart(all.filter(r=>r.date>=min&&r.date<=today()),min);
+}
+function drawChart(rows,min){
+  if(!rows.length){$('chart').innerHTML=empty('No weigh-ins in this range.');return;}
+  const W=440,H=240,L=45,R=15,T=20,B=34,values=rows.map(r=>displayWeight(r.weight));
+  const margin=weightUnit==='kg'?.45:1,minimumRange=weightUnit==='kg'?2:4;
+  let low=Math.floor((Math.min(...values)-margin)*2)/2,high=Math.ceil((Math.max(...values)+margin)*2)/2;
+  if(high-low<minimumRange){low-=minimumRange/4;high+=minimumRange/4;}
+  const x0=dayNumber(min==='0000-00-00'?rows[0].date:min),x1=Math.max(dayNumber(today()),x0+1);
+  const x=d=>L+(dayNumber(d)-x0)/(x1-x0)*(W-L-R),y=v=>T+(high-v)/(high-low)*(H-T-B);
+  let grid='';
+  for(let i=0;i<5;i++){
+    const v=low+(high-low)*i/4;
+    grid+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e7eade" stroke-dasharray="3 4"/><text x="${L-9}" y="${y(v)+4}" text-anchor="end">${number(v)}</text>`;
+  }
+  const pts=rows.map(r=>`${x(r.date)},${y(displayWeight(r.weight))}`).join(' ');
+  const path=`M ${x(rows[0].date)},${H-B} L ${pts.replaceAll(' ',' L ')} L ${x(rows.at(-1).date)},${H-B} Z`;
+  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight chart with ${rows.length} weigh-ins in ${weightUnit}"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a7c88b" stop-opacity=".35"/><stop offset="1" stop-color="#a7c88b" stop-opacity=".01"/></linearGradient></defs>${grid}<path d="${path}" fill="url(#fill)"/><polyline points="${pts}" fill="none" stroke="#719752" stroke-width="2" stroke-linejoin="round"/>${rows.map(r=>`<circle tabindex="0" role="button" aria-label="${dateLabel(r.date)}, ${number(displayWeight(r.weight))} ${weightUnit}" data-date="${r.date}" cx="${x(r.date)}" cy="${y(displayWeight(r.weight))}" r="4.5" fill="#719752" stroke="white" stroke-width="2"><title>${dateLabel(r.date)} · ${number(displayWeight(r.weight))} ${weightUnit}</title></circle>`).join('')}<text x="${L}" y="${H-6}">${new Date(x0*86400000).toLocaleDateString(undefined,{month:'short',day:'numeric',...(new Date(x0*86400000).getUTCFullYear()!==Number(today().slice(0,4))?{year:'numeric'}:{}),timeZone:'UTC'})}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${dateLabel(today())}</text></svg><div class="chart-selection" id="chart-selection">${dateLabel(rows.at(-1).date)} · ${number(displayWeight(rows.at(-1).weight))} ${weightUnit}</div>`;
+  const select=e=>{const d=e.target.dataset.date;if(d){const r=rows.find(r=>r.date===d);$('chart-selection').textContent=`${dateLabel(d)} · ${number(displayWeight(r.weight))} ${weightUnit}`;}};$('chart').onclick=select;$('chart').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(e);}};
+}
 function closeTools(){$('data-menu').hidden=true;$('tools-toggle').setAttribute('aria-expanded','false');}
 $('tools-toggle').onclick=()=>{$('data-menu').hidden=!$('data-menu').hidden;$('tools-toggle').setAttribute('aria-expanded',String(!$('data-menu').hidden));};document.addEventListener('click',e=>{if(!e.target.closest('.data-tools'))closeTools();});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTools();});
 function download(content,extension,mime){const url=URL.createObjectURL(new Blob([content],{type:mime}));const a=document.createElement('a');a.href=url;a.download=`daily-backup-${today()}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);closeTools();}
-$('export-json').onclick=()=>{if(loadFailed){const raw=localStorage.getItem(KEY);if(raw)download(raw,'json','application/json');else toast('No saved data available.');return;}download(JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2),'json','application/json');};$('export-csv').onclick=()=>download(toCSV(data),'csv','text/csv;charset=utf-8');$('import-button').onclick=()=>$('import-file').click();
+$('export-json').onclick=()=>{if(loadFailed){const raw=localStorage.getItem(KEY);if(raw)download(raw,'json','application/json');else toast('No saved data available.');return;}download(JSON.stringify({...exportBackup(data,weightUnit),exportedAt:new Date().toISOString()},null,2),'json','application/json');};$('export-csv').onclick=()=>download(toCSV(data,weightUnit),'csv','text/csv;charset=utf-8');$('import-button').onclick=()=>$('import-file').click();
 $('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw Error('Backup is too large (maximum 20 MB).');const raw=await file.text(),incoming=file.name.toLowerCase().endsWith('.csv')?fromCSV(raw):validate(JSON.parse(raw));const counts=`${incoming.entries.length} macro entries, ${incoming.foods.length} foods, and ${incoming.weights.length} weigh-ins`;if(confirm(`Import ${counts}? This merges with your data. Matching IDs and weigh-in dates use the imported values.`)){const next=merge(data,incoming);if(loadFailed){localStorage.setItem(KEY,JSON.stringify(next));data=next;loadFailed=false;render();toast('Backup restored.');}else if(save(next))toast('Data imported.');closeTools();}}catch(err){toast(err.message||'Could not import this file.');}finally{e.target.value='';}};
-window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();// iOS Safari can still dispatch native pinch gestures despite viewport settings.
+window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');weightUnit=p.weightUnit==='kg'?'kg':'lb';updateWeightInputs();renderWeight();renderMaintenance();}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});updateWeightInputs();setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();// iOS Safari can still dispatch native pinch gestures despite viewport settings.
 for(const type of ['gesturestart','gesturechange']){
   document.addEventListener(type,e=>e.preventDefault(),{passive:false});
 }
