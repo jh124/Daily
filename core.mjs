@@ -8,6 +8,26 @@ export function isDuplicateFood(foods,candidate,excludeId=null){
   const name=candidate.name.trim().toLocaleLowerCase();
   return foods.some(food=>food.id!==excludeId&&food.name.trim().toLocaleLowerCase()===name&&food.calories===candidate.calories&&food.protein===candidate.protein);
 }
+
+/** Average daily totals across logged dates within the last 7 calendar days, including today.
+ * Days with no entries are not assumed to be zero intake. */
+export function recentMacroAverages(entries,now=today()){
+  const end=dayNumber(now),start=end-6,days=new Map();
+  for(const r of entries){
+    const day=dayNumber(r.date);
+    if(day<start||day>end)continue;
+    const total=days.get(r.date)||{calories:0,protein:0};
+    total.calories+=r.calories;
+    total.protein+=r.protein;
+    days.set(r.date,total);
+  }
+  const loggedDays=days.size;
+  if(!loggedDays)return {calories:null,protein:null,loggedDays};
+  let calories=0,protein=0;
+  for(const total of days.values()){calories+=total.calories;protein+=total.protein;}
+  return {calories:calories/loggedDays,protein:protein/loggedDays,loggedDays};
+}
+
 export const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 export const dayNumber=d=>Date.UTC(...d.split('-').map((v,i)=>i===1?+v-1:+v))/86400000;
 export const validDate=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&new Date(dayNumber(d)*86400000).toISOString().slice(0,10)===d;
