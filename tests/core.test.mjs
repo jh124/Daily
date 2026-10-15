@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cutoff,validDate,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,LB_PER_KG,isDuplicateFood,hasNonzeroMacros} from '../core.mjs';
+import {cutoff,validDate,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,LB_PER_KG,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from '../core.mjs';
 const day=n=>new Date(Date.UTC(2026,8,15+n)).toISOString().slice(0,10);
 const now=day(28);
 const records=(weekly=0)=>({
@@ -138,4 +138,23 @@ test('legacy data containing zero-valued records can still be read',()=>{
   const restored=validate(d);
   assert.equal(restored.entries.at(-1).calories,0);
   assert.equal(restored.foods.at(-1).protein,0);
+});
+
+test('rolling macro averages sum meals per day, include today and ignore old or future entries',()=>{
+  const entries=[
+    {date:day(21),calories:999,protein:99},
+    {date:day(22),calories:300,protein:15},
+    {date:day(22),calories:700,protein:25},
+    {date:day(28),calories:500,protein:30},
+    {date:day(29),calories:1000,protein:70}
+  ];
+  assert.deepEqual(recentMacroAverages(entries,day(28)),{calories:750,protein:35,loggedDays:2});
+});
+test('rolling averages do not treat missing log days as zero or include data outside seven days',()=>{
+  assert.deepEqual(recentMacroAverages([],'2027-01-02'),{calories:null,protein:null,loggedDays:0});
+  assert.deepEqual(recentMacroAverages([
+    {date:'2026-12-26',calories:999,protein:999},
+    {date:'2026-12-27',calories:1000,protein:50},
+    {date:'2027-01-02',calories:3000,protein:150}
+  ],'2027-01-02'),{calories:2000,protein:100,loggedDays:2});
 });
