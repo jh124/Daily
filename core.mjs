@@ -9,13 +9,13 @@ export function isDuplicateFood(foods,candidate,excludeId=null){
   return foods.some(food=>food.id!==excludeId&&food.name.trim().toLocaleLowerCase()===name&&food.calories===candidate.calories&&food.protein===candidate.protein);
 }
 
-/** Average daily totals across logged dates within the last 7 calendar days, including today.
+/** Average daily totals across logged dates in the 7 completed calendar days before today.
  * Days with no entries are not assumed to be zero intake. */
 export function recentMacroAverages(entries,now=today()){
-  const end=dayNumber(now),start=end-6,days=new Map();
+  const end=dayNumber(now),start=end-7,days=new Map();
   for(const r of entries){
     const day=dayNumber(r.date);
-    if(day<start||day>end)continue;
+    if(day<start||day>=end)continue;
     const total=days.get(r.date)||{calories:0,protein:0};
     total.calories+=r.calories;
     total.protein+=r.protein;
