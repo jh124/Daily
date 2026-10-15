@@ -140,21 +140,24 @@ test('legacy data containing zero-valued records can still be read',()=>{
   assert.equal(restored.foods.at(-1).protein,0);
 });
 
-test('rolling macro averages sum meals per day, include today and ignore old or future entries',()=>{
+test('rolling macro averages use the 7 completed days ending yesterday',()=>{
   const entries=[
-    {date:day(21),calories:999,protein:99},
+    {date:day(20),calories:999,protein:99}, // Eight days ago: excluded.
+    {date:day(21),calories:900,protein:60}, // Seven days ago: included.
     {date:day(22),calories:300,protein:15},
     {date:day(22),calories:700,protein:25},
-    {date:day(28),calories:500,protein:30},
-    {date:day(29),calories:1000,protein:70}
+    {date:day(27),calories:2000,protein:110}, // Yesterday: included.
+    {date:day(28),calories:500,protein:30}, // Today: excluded.
+    {date:day(29),calories:1000,protein:70} // Tomorrow: excluded.
   ];
-  assert.deepEqual(recentMacroAverages(entries,day(28)),{calories:750,protein:35,loggedDays:2});
+  assert.deepEqual(recentMacroAverages(entries,day(28)),{calories:1300,protein:70,loggedDays:3});
 });
-test('rolling averages do not treat missing log days as zero or include data outside seven days',()=>{
+test('rolling averages ignore unlogged days and handle year boundaries',()=>{
   assert.deepEqual(recentMacroAverages([],'2027-01-02'),{calories:null,protein:null,loggedDays:0});
   assert.deepEqual(recentMacroAverages([
-    {date:'2026-12-26',calories:999,protein:999},
-    {date:'2026-12-27',calories:1000,protein:50},
-    {date:'2027-01-02',calories:3000,protein:150}
+    {date:'2026-12-25',calories:999,protein:999}, // Outside window.
+    {date:'2026-12-26',calories:1000,protein:50}, // First included date.
+    {date:'2027-01-01',calories:3000,protein:150}, // Last included date.
+    {date:'2027-01-02',calories:2000,protein:100} // Today excluded.
   ],'2027-01-02'),{calories:2000,protein:100,loggedDays:2});
 });
