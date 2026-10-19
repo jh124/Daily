@@ -1,5 +1,5 @@
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=44';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=45';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=GUEST_KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -7,13 +7,15 @@ let weightUnit=preferences.weightUnit==='kg'?'kg':'lb';
 const displayWeight=pounds=>weightToUnit(pounds,weightUnit),internalWeight=value=>weightFromUnit(value,weightUnit);
 const weightNumber=pounds=>Number(displayWeight(pounds).toFixed(2));
 function updateWeightInputs(){for(const id of ['weight-input','edit-weight-value']){$(id).max=weightUnit==='kg'?'907.18':'2000';$(id).min='0.01';}document.querySelectorAll('[data-weight-unit]').forEach(el=>el.textContent=weightUnit);$('edit-weight-label').textContent='Weight ('+weightUnit+')';$('maintenance-energy-unit').textContent=weightUnit==='kg'?'7,700 kcal per kilogram':'3,500 kcal per pound';$('weight-input').placeholder='0';}
-function setWeightUnit(next){if(!['lb','kg'].includes(next)||weightUnit===next)return;weightUnit=next;$('weight-input').value='';updateWeightInputs();renderWeight();renderMaintenance();savePreferences();toast('Weight units: '+weightUnit);}
-let themeTaps=[];
+function setWeightUnit(next){if(!['lb','kg'].includes(next)||weightUnit===next)return;weightUnit=next;$('weight-unit-select').value=weightUnit;$('weight-input').value='';$('edit-weight-value').value='';updateWeightInputs();renderWeight();renderMaintenance();savePreferences();toast('Weight units: '+weightUnit);}
+
 function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value,theme:document.documentElement.dataset.theme==='dark'?'dark':'light',weightUnit}));}catch{}}
 
-function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-toggle').querySelector('span').innerHTML=dark?'<svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true" fill="currentColor"><circle cx="12" cy="12" r="4.4"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.58 4.58l2.12 2.12M17.3 17.3l2.12 2.12M19.42 4.58 17.3 6.7M6.7 17.3l-2.12 2.12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>':'☾';$('theme-toggle').setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
+function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-select').value=dark?'dark':'light';document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
 setTheme(preferences.theme==='dark'?'dark':'light');
-$('theme-toggle').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');savePreferences();if(page!=='weight'){themeTaps=[];return;}const now=performance.now();themeTaps=themeTaps.filter(t=>now-t<=3000);themeTaps.push(now);if(themeTaps.length>=5){themeTaps=[];setWeightUnit(weightUnit==='lb'?'kg':'lb');}};
+$('theme-select').onchange=()=>{setTheme($('theme-select').value);savePreferences();};
+$('weight-unit-select').value=weightUnit;
+$('weight-unit-select').onchange=()=>setWeightUnit($('weight-unit-select').value);
 function toast(msg,duration){$('toast-message').textContent=msg;$('undo-button').hidden=!undoState;$('toast').classList.add('show');clearTimeout(timer);timer=setTimeout(()=>{$('toast').classList.remove('show');undoState=null;$('undo-button').hidden=true;},duration??(undoState?5000:4000));}
 let loadFailed=false;try{const stored=localStorage.getItem(KEY);if(stored){const restored=validate(JSON.parse(stored));data={...restored,foods:restored.foods??restored.meals??[]};}}catch{loadFailed=true;toast('Saved data could not be read. Export or restore a backup before making changes.');}
 function save(next,undoable=true){if(loadFailed){toast('Storage could not be read. Import a valid backup to restore it.');return false;}try{next=validate(next);next={...next,foods:next.foods??next.meals??[]};const before=JSON.stringify(data),after=JSON.stringify(next);localStorage.setItem(KEY,after);undoState=undoable?{before,after}:null;data=next;cloud?.changed();render();toast('Saved.');return true;}catch{toast('Could not save. Check values or export a backup and free up storage.');return false;}}
@@ -42,7 +44,7 @@ $('macro-date').value=selected;$('weight-date').value=today();$('macro-date').ma
 $('chart-range').innerHTML='<option value="week">1 week</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1} month${i?'s':''}</option>`).join('')+'<option value="all">All data</option>';$('chart-range').value=['week','all',...Array.from({length:12},(_,i)=>String(i+1))].includes(preferences.chartRange)?preferences.chartRange:'1';
 $('trend-range').innerHTML=Array.from({length:12},(_,i)=>`<option value="${i+1}">Last ${i+1} month${i?'s':''}</option>`).join('');
 $('trend-range').value=/^(?:[1-9]|1[0-2])$/.test(preferences.trendRange)?preferences.trendRange:'1';
-function switchPage(next){themeTaps=[];const pages=['macro','weight','maintenance'];page=next;$('nav-pill').style.transform=`translateX(${pages.indexOf(next)*100}%)`;for(const p of pages){$(p+'-page').hidden=p!==next;$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();savePreferences();}
+function switchPage(next){const pages=['macro','weight','maintenance'];page=next;$('nav-pill').style.transform=`translateX(${pages.indexOf(next)*100}%)`;for(const p of pages){$(p+'-page').hidden=p!==next;$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();savePreferences();}
 for(const p of ['macro','weight','maintenance'])$(p+'-tab').onclick=()=>switchPage(p);
 function selectDay(d){if(d>today())return;selected=d;$('macro-date').value=d;render();}
 $('macro-date').onchange=()=>{if($('macro-date').value)selectDay($('macro-date').value);};
@@ -243,12 +245,15 @@ function drawChart(rows,min){
   $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight chart with ${rows.length} weigh-ins in ${weightUnit}"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a7c88b" stop-opacity=".35"/><stop offset="1" stop-color="#a7c88b" stop-opacity=".01"/></linearGradient></defs>${grid}<path d="${path}" fill="url(#fill)"/><polyline points="${pts}" fill="none" stroke="#719752" stroke-width="2" stroke-linejoin="round"/>${rows.map(r=>`<circle tabindex="0" role="button" aria-label="${dateLabel(r.date)}, ${number(displayWeight(r.weight))} ${weightUnit}" data-date="${r.date}" cx="${x(r.date)}" cy="${y(displayWeight(r.weight))}" r="4.5" fill="#719752" stroke="white" stroke-width="2"><title>${dateLabel(r.date)} · ${number(displayWeight(r.weight))} ${weightUnit}</title></circle>`).join('')}<text x="${L}" y="${H-6}">${new Date(x0*86400000).toLocaleDateString(undefined,{month:'short',day:'numeric',...(new Date(x0*86400000).getUTCFullYear()!==Number(today().slice(0,4))?{year:'numeric'}:{}),timeZone:'UTC'})}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${dateLabel(today())}</text></svg><div class="chart-selection" id="chart-selection">${dateLabel(rows.at(-1).date)} · ${number(displayWeight(rows.at(-1).weight))} ${weightUnit}</div>`;
   const select=e=>{const d=e.target.dataset.date;if(d){const r=rows.find(r=>r.date===d);$('chart-selection').textContent=`${dateLabel(d)} · ${number(displayWeight(r.weight))} ${weightUnit}`;}};$('chart').onclick=select;$('chart').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(e);}};
 }
-function closeTools(){$('data-menu').hidden=true;$('tools-toggle').setAttribute('aria-expanded','false');}
-$('tools-toggle').onclick=()=>{$('data-menu').hidden=!$('data-menu').hidden;$('tools-toggle').setAttribute('aria-expanded',String(!$('data-menu').hidden));};document.addEventListener('click',e=>{if(!e.target.closest('.data-tools'))closeTools();});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTools();});
+function closeTools(){$('account-dialog').close();}
+function openAccount(){closeEntryMenus();if($('storage-notice').open)$('storage-notice').close();if(!$('account-dialog').open)$('account-dialog').showModal();$('user-menu-toggle').setAttribute('aria-expanded','true');}
+$('user-menu-toggle').onclick=openAccount;
+$('account-dialog').onclose=()=>$('user-menu-toggle').setAttribute('aria-expanded','false');
+$('account-dialog').addEventListener('click',e=>{if(e.target!==$('account-dialog'))return;const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeTools();});
 function download(content,extension,mime){const url=URL.createObjectURL(new Blob([content],{type:mime}));const a=document.createElement('a');a.href=url;a.download=`daily-backup-${today()}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);closeTools();}
 $('export-json').onclick=()=>{if(loadFailed){const raw=localStorage.getItem(KEY);if(raw)download(raw,'json','application/json');else toast('No saved data available.');return;}download(JSON.stringify({...exportBackup(data,weightUnit),exportedAt:new Date().toISOString()},null,2),'json','application/json');};$('export-csv').onclick=()=>download(toCSV(data,weightUnit),'csv','text/csv;charset=utf-8');$('import-button').onclick=()=>$('import-file').click();
 $('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw Error('Backup is too large (maximum 20 MB).');const raw=await file.text(),incoming=file.name.toLowerCase().endsWith('.csv')?fromCSV(raw):validate(JSON.parse(raw));const counts=`${incoming.entries.length} macro entries, ${incoming.foods.length} foods, and ${incoming.weights.length} weigh-ins`;if(confirm(`Import ${counts}? This merges with your data. Matching IDs and weigh-in dates use the imported values.`)){const next=merge(data,incoming);if(loadFailed){localStorage.setItem(KEY,JSON.stringify(next));data=next;loadFailed=false;cloud?.changed();render();toast('Backup restored.');}else if(save(next))toast('Data imported.');closeTools();}}catch(err){toast(err.message||'Could not import this file.');}finally{e.target.value='';}};
-window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');weightUnit=p.weightUnit==='kg'?'kg':'lb';updateWeightInputs();renderWeight();renderMaintenance();}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
+window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');weightUnit=p.weightUnit==='kg'?'kg':'lb';$('weight-unit-select').value=weightUnit;updateWeightInputs();renderWeight();renderMaintenance();}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});updateWeightInputs();setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();// iOS Safari can still dispatch native pinch gestures despite viewport settings.
 for(const type of ['gesturestart','gesturechange']){
   document.addEventListener(type,e=>e.preventDefault(),{passive:false});
@@ -266,7 +271,8 @@ if('serviceWorker' in navigator){
 }
 
 function showStorageNotice(){
-  const noticeKey=GUEST_KEY+'-storage-notice-seen';
+  const noticeKey=GUEST_KEY+'-storage-notice-v2-seen';
+  $('storage-notice-account').onclick=()=>{openAccount();if(!$('auth-form').hidden)$('account-login-email').focus();};
   $('storage-notice-close').onclick=()=>$('storage-notice').close();
   $('storage-notice').onclose=()=>{try{localStorage.setItem(noticeKey,'1');}catch{}};
   try{if(localStorage.getItem(noticeKey)==='1')return;}catch{}
@@ -288,11 +294,12 @@ cloud=createCloud({
   status:(message,user,configured)=>{
     $('cloud-status').textContent=message;$('account-email').textContent=user?.email||'Optional cloud backup';
     $('auth-form').hidden=!!user||!configured;$('code-form').hidden=!!user||!configured;$('account-actions').hidden=!user;
-    $('cloud-unavailable').hidden=configured;$('account-open').textContent=user?'Account & sync':'Account / cloud sync';
+    $('cloud-unavailable').hidden=configured;
+    $('storage-notice-account').textContent=user?'Open account':'Create account / sign in';
+    $('storage-notice-close').textContent=user?'Continue':'Continue without an account';
   }
 });
-$('account-open').onclick=()=>{closeTools();$('account-dialog').showModal();};
-$('account-close').onclick=()=>$('account-dialog').close();
+$('account-close').onclick=closeTools;
 async function accountAction(action){
   const buttons=[...$('account-dialog').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
   try{const message=await action();if(message)$('account-message').textContent=message;else $('account-message').textContent='';}
@@ -300,7 +307,7 @@ async function accountAction(action){
   finally{buttons.forEach(b=>b.disabled=false);}
 }
 $('account-login-email').value=cloud.pendingEmail();
-$('auth-form').onsubmit=e=>{e.preventDefault();accountAction(async()=>{const message=await cloud.sendLink($('account-login-email').value.trim());$('account-code').value='';$('account-code').focus();return message;});};
+$('auth-form').onsubmit=e=>{e.preventDefault();accountAction(async()=>{const message=await cloud.sendCode($('account-login-email').value.trim());$('account-code').value='';$('account-code').focus();return message;});};
 $('code-form').onsubmit=e=>{e.preventDefault();if(!$('account-login-email').reportValidity())return;accountAction(async()=>{const message=await cloud.verifyCode($('account-login-email').value.trim(),$('account-code').value);$('account-code').value='';return message;});};
 $('account-sync').onclick=()=>accountAction(()=>cloud.sync());
 $('account-signout').onclick=()=>{if(confirm('Sign out? Unsynced changes stay on this device for this account. Your separate guest log will reopen.'))accountAction(()=>cloud.signOut());};

@@ -32,4 +32,4 @@ Run `node --test tests/core.test.mjs` (Node.js 20+) before publishing. Tests cov
 
 ## Optional cloud accounts
 
-Passwordless email-link accounts and offline syncing use Supabase. Guest data stays local. See [CLOUD_SETUP.md](CLOUD_SETUP.md) for setup and live verification.
+Passwordless email-code accounts and offline syncing use Supabase. Guest data stays local. See [CLOUD_SETUP.md](CLOUD_SETUP.md) for setup and live verification.

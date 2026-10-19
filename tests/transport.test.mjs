@@ -16,7 +16,7 @@ else if(p==='/rest/v1/rpc/daily_sync'){
 }else value={};return {ok:true,json:async()=>value};};
 const {createCloud}=await import('../cloud.mjs');
 const cloud=createCloud({read:()=>local,activate:async id=>{user=id;},apply:d=>{local=d;},status:text=>{status=text;}},{url:'https://cloud.test',key:'public-test'});
-const row={id:'a',date:'2026-10-01',name:'Milk',calories:500,protein:20};local.entries.push(row);assert.match(await cloud.sendLink(' jack@example.com '),/Check your email/);assert.equal(user,null);assert.equal(cloud.pendingEmail(),'jack@example.com');await cloud.start();assert.equal(location.hash,'');assert.equal(remote.entries.length,1);assert.match(status,/Synced/);assert.equal(user,'u1');
+const row={id:'a',date:'2026-10-01',name:'Milk',calories:500,protein:20};local.entries.push(row);assert.match(await cloud.sendCode(' jack@example.com '),/Check your email/);assert.equal(user,null);assert.equal(cloud.pendingEmail(),'jack@example.com');await cloud.start();assert.equal(location.hash,'');assert.equal(remote.entries.length,1);assert.match(status,/Synced/);assert.equal(user,'u1');
 local.entries=[];navigator.onLine=false;await cloud.sync();assert.equal(remote.entries.length,1);assert.match(status,/Offline/);navigator.onLine=true;await cloud.sync();assert.equal(remote.entries.length,0);assert.match(status,/Synced/);
 await cloud.signOut();assert.equal(user,null);assert.equal(storage.get('daily-cloud-session'),undefined);
 await assert.rejects(()=>cloud.verifyCode('jack@example.com','abc'),/numeric code/);assert.equal(verifyCalls,0);

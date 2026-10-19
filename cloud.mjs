@@ -1,6 +1,6 @@
 import {cloudConfig} from './cloud-config.mjs';
 import {emptyData,reconcile} from './sync-core.mjs';
-import {validate} from './core.mjs?v=44';
+import {validate} from './core.mjs?v=45';
 const SESSION='daily-cloud-session', BASE='daily-cloud-base-', PENDING='daily-cloud-login-email';
 export function createCloud({read,activate,apply,status},config=cloudConfig){
   const configured=!!config.url&&!!config.key;
@@ -67,12 +67,12 @@ export function createCloud({read,activate,apply,status},config=cloudConfig){
   }
   const api={
     changed(){dirty=true;if(!running){dirty=false;report(session?'Changes waiting to sync':'Saved on this device');clearTimeout(api.timer);api.timer=setTimeout(sync,800);}},sync,
-    async sendLink(email){
+    async sendCode(email){
       email=email.trim();
       if(!email)throw Error('Enter your email address.');
       await request('/auth/v1/otp?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email,create_user:true});
       try{localStorage.setItem(PENDING,email);}catch{}
-      return 'Check your email. In the Home Screen app, enter the email code here instead of opening the link.';
+      return 'Check your email and enter the code below.';
     },
     pendingEmail(){try{return localStorage.getItem(PENDING)||'';}catch{return '';}},
     async verifyCode(email,code){

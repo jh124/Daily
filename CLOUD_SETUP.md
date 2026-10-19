@@ -11,8 +11,8 @@ sync is not active merely because these files are deployed.
    service-role key, secret key, database password or personal access token.
 4. In Authentication URL Configuration, set Site URL and allowed redirect URL
    to `https://jh124.github.io/Daily/`.
-5. Enable email authentication and keep the default Magic Link email template
-   using `{{ .ConfirmationURL }}` (a clickable link, not a numeric code).
+5. Enable email authentication and use the code-only email template in `supabase/login-email.html` for both
+   Magic Link and Confirm signup.
    The app uses passwordless email login; the same flow creates new accounts. Configure a custom
    SMTP provider for public login emails; Supabase's default sender
    only supports project team addresses. Check that provider's free allowance
@@ -60,16 +60,14 @@ and configured redirect URLs and Brevo custom SMTP. Live login email delivery,
 account isolation and syncing still require verification. The client includes a
 legacy meals alias on uploads to remain compatible with the installed SQL.
 
-## Home Screen app login
-
-Safari and an installed iOS web app can use separate sessions. Opening a magic
-link in Safari cannot be assumed to sign the Home Screen app in. Daily also
-accepts the email code directly in whichever app requests it. It remembers the
-pending email address locally, never the code.
+## Code-only email login
 
 In Authentication > Emails > Templates, replace the bodies of both **Magic
-Link** and **Confirm signup** with `supabase/login-email.html`. Keep both
-`{{ .Token }}` and `{{ .ConfirmationURL }}` so users can choose a code or link.
-The code and link are alternatives: after either is used, request a new email
-before trying the other. Test the code in the Home Screen app without opening
-the email link first. No SMTP, SQL, password or database changes are needed.
+Link** and **Confirm signup** with `supabase/login-email.html`. The template
+uses `{{ .Token }}` and contains no login link. The client requests an email
+code and verifies it inside Safari or the Home Screen app. No SMTP or SQL
+changes are needed. Dashboard templates cannot be updated with the public key.
+
+The user icon opens the account/settings drawer. It includes code-only signup
+and login, signout, sync, account deletion, import/export, appearance and weight
+units. A revised first-open explanation offers account creation or guest use.

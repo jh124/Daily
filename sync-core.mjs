@@ -1,4 +1,4 @@
-import {validate} from './core.mjs?v=44';
+import {validate} from './core.mjs?v=45';
 export const emptyData=()=>({app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]});
 // Three-way merge: unchanged local records follow the server, including deletions.
 // If both devices edit the same record, the device currently syncing wins.
