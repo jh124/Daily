@@ -27,7 +27,7 @@ sync is not active merely because these files are deployed.
 
 Guest and each account have separate local storage. On first login on a device,
 Daily offers to copy guest history. The guest copy remains available when signed
-out. Entries and meals merge by ID; weights merge by date. A saved baseline
+out. Entries and foods merge by ID; weights merge by date. A saved baseline
 tracks deletions without resurrecting stale records. If both devices change the
 same record, the device currently syncing wins. A server revision check retries
 concurrent writes. Edits made during requests remain pending rather than being
@@ -52,3 +52,10 @@ do not promise permanent free hosting or loss-proof storage.
 Run `node --test tests/*.test.mjs`. These tests cover reconciliation and a simulated cloud transport, not a
 live Supabase deployment. Live authentication, database isolation and SQL must
 be verified after connecting a project before opening public registration.
+
+## Current setup
+
+The project URL and publishable key are configured. The owner has run the SQL
+and configured redirect URLs and Brevo custom SMTP. Live login email delivery,
+account isolation and syncing still require verification. The client includes a
+legacy meals alias on uploads to remain compatible with the installed SQL.

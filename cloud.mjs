@@ -1,6 +1,6 @@
 import {cloudConfig} from './cloud-config.mjs';
 import {emptyData,reconcile} from './sync-core.mjs';
-import {validate} from './core.mjs';
+import {validate} from './core.mjs?v=43';
 const SESSION='daily-cloud-session', BASE='daily-cloud-base-';
 export function createCloud({read,activate,apply,status},config=cloudConfig){
   const configured=!!config.url&&!!config.key;
@@ -47,7 +47,7 @@ export function createCloud({read,activate,apply,status},config=cloudConfig){
         const snapshot=structuredClone(read());
         const merged=reconcile(base,snapshot,remote);
         if(JSON.stringify(merged)!==JSON.stringify(remote)){
-          const result=await request('/rest/v1/rpc/daily_sync',{expected_revision:rows[0]?.revision||0,new_payload:merged},access);
+          const result=await request('/rest/v1/rpc/daily_sync',{expected_revision:rows[0]?.revision||0,new_payload:{...merged,meals:merged.foods}},access);
           if(g!==generation)return;
           if(result.conflict)continue;
         }

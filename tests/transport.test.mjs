@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 const storage=new Map();globalThis.localStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
 globalThis.window={addEventListener(){}};globalThis.document={hidden:false,addEventListener(){}};globalThis.location={origin:'https://daily.test',pathname:'/',hash:'#access_token=token&refresh_token=refresh&expires_in=3600'};Object.defineProperty(globalThis.navigator,'onLine',{value:true,writable:true});globalThis.setInterval=()=>0;globalThis.history={replaceState:()=>{location.hash='';}};
-let user=null,local={app:'daily-macros-weight',version:1,entries:[],meals:[],weights:[]},remote=structuredClone(local),revision=0,status='';
+let user=null,local={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},remote=structuredClone(local),revision=0,status='';
 let conflictOnce=true;
 globalThis.fetch=async(url,options)=>{let value;const p=new URL(url).pathname;
 if(p==='/auth/v1/otp'){const body=JSON.parse(options.body);assert.deepEqual(body,{email:'jack@example.com',create_user:true});assert.equal(new URL(url).searchParams.get('redirect_to'),'https://daily.test/');value={};}
@@ -20,4 +20,3 @@ local.entries=[];navigator.onLine=false;await cloud.sync();assert.equal(remote.e
 await cloud.signOut();assert.equal(user,null);assert.equal(storage.get('daily-cloud-session'),undefined);
 location.hash='#error=access_denied&error_description=expired';await cloud.start();assert.match(status,/expired or invalid/);assert.equal(user,null);assert.equal(location.hash,'');
 console.log('Mock transport passed: email link request/callback, expired links, revision-conflict retry, upload, offline retention, reconnect deletion, signout.');
-
