@@ -194,3 +194,5 @@ html,body{touch-action:pan-x pan-y}
 [data-theme="dark"] .preference-indicator{background:#a3c58e}
 [data-theme="dark"] .preference-pill button[aria-pressed="true"]{color:#101b13}
 .drawer-version{margin-top:4px;font-size:10px;opacity:.75}
+
+.list-show-more{display:block;width:100%;min-height:42px;margin-top:10px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-size:12px;font-weight:500}.list-show-more:hover{border-color:var(--accent)}

@@ -1,6 +1,7 @@
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=46';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=47';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
+let expandedFoods=false,expandedEntriesDate=null;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=GUEST_KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
 let weightUnit=preferences.weightUnit==='kg'?'kg':'lb';
@@ -47,7 +48,7 @@ $('trend-range').innerHTML=Array.from({length:12},(_,i)=>`<option value="${i+1}"
 $('trend-range').value=/^(?:[1-9]|1[0-2])$/.test(preferences.trendRange)?preferences.trendRange:'1';
 function switchPage(next){const pages=['macro','weight','maintenance'];page=next;$('nav-pill').style.transform=`translateX(${pages.indexOf(next)*100}%)`;for(const p of pages){$(p+'-page').hidden=p!==next;$(p+'-tab').classList.toggle('active',p===next);if(p===next)$(p+'-tab').setAttribute('aria-current','page');else $(p+'-tab').removeAttribute('aria-current');}window.scrollTo({top:0,behavior:'instant'});render();savePreferences();}
 for(const p of ['macro','weight','maintenance'])$(p+'-tab').onclick=()=>switchPage(p);
-function selectDay(d){if(d>today())return;selected=d;$('macro-date').value=d;render();}
+function selectDay(d){if(d>today())return;if(d!==selected)expandedEntriesDate=null;selected=d;$('macro-date').value=d;render();}
 $('macro-date').onchange=()=>{if($('macro-date').value)selectDay($('macro-date').value);};
 function shiftDay(n){const d=new Date(selected+'T12:00:00');d.setDate(d.getDate()+n);selectDay(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);}
 $('prev-day').onclick=()=>shiftDay(-1);$('next-day').onclick=()=>shiftDay(1);
@@ -175,9 +176,16 @@ $('edit-weight-form').onsubmit=e=>{
 function setView(v){view=v;$('graph-panel').hidden=v!=='graph';$('weight-table').hidden=v!=='table';for(const t of ['graph','table']){$(t+'-view').classList.toggle('active',v===t);$(t+'-view').setAttribute('aria-pressed',String(v===t));}savePreferences();}
 $('graph-view').onclick=()=>setView('graph');$('table-view').onclick=()=>setView('table');$('chart-range').onchange=()=>{renderWeight();savePreferences();};$('trend-range').onchange=()=>{renderWeight();savePreferences();};
 function render(){renderMacros();renderWeight();renderMaintenance();}
+$('foods-show-more').onclick=()=>{expandedFoods=true;renderMacros();};
+$('entries-show-more').onclick=()=>{expandedEntriesDate=selected;renderMacros();};
 function renderMacros(){const entries=data.entries.filter(r=>r.date===selected);$('cal-total').innerHTML=number(entries.reduce((s,r)=>s+r.calories,0))+'<span> kcal</span>';$('protein-total').innerHTML=number(entries.reduce((s,r)=>s+r.protein,0))+'<span> g</span>';$('day-label').textContent=selected===today()?'Today':dateLabel(selected);$('next-day').disabled=selected>=today();$('log-label').textContent=selected===today()?'Add to today':'Add to this day';$('entries-title').textContent=selected===today()?"Today's log":'Daily log';$('entry-count').textContent=entries.length+' entr'+(entries.length===1?'y':'ies');
-$('foods').innerHTML=data.foods.length?data.foods.map(r=>`<div class="row"><div><div class="row-name">${escape(r.name)}</div><div class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</div></div><div class="row-actions"><select class="food-serving" aria-label="Servings of ${escape(r.name)}"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option></select><button class="text-button" data-action="add" data-id="${escape(r.id)}" aria-label="Add ${escape(r.name)} to today">Add</button>${entryMenu(r.id,r.name)}</div></div>`).join(''):empty('No saved foods.');
-$('entries').innerHTML=entries.length?[...entries].reverse().map(r=>`<div class="row"><div class="entry-content"><span class="row-name">${escape(r.name)}</span><span class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</span></div>${entryMenu(r.id,r.name,true)}</div>`).join(''):empty('No entries.');
+const visibleFoods=data.foods.length>12&&!expandedFoods?data.foods.slice(0,10):data.foods;
+$('foods-show-more').hidden=data.foods.length<=12||expandedFoods;$('foods-show-more').setAttribute('aria-expanded',String(expandedFoods));
+const orderedEntries=[...entries].reverse(),entriesExpanded=expandedEntriesDate===selected;
+const visibleEntries=entries.length>12&&!entriesExpanded?orderedEntries.slice(0,10):orderedEntries;
+$('entries-show-more').hidden=entries.length<=12||entriesExpanded;$('entries-show-more').setAttribute('aria-expanded',String(entriesExpanded));
+$('foods').innerHTML=visibleFoods.length?visibleFoods.map(r=>`<div class="row"><div><div class="row-name">${escape(r.name)}</div><div class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</div></div><div class="row-actions"><select class="food-serving" aria-label="Servings of ${escape(r.name)}"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option></select><button class="text-button" data-action="add" data-id="${escape(r.id)}" aria-label="Add ${escape(r.name)} to today">Add</button>${entryMenu(r.id,r.name)}</div></div>`).join(''):empty('No saved foods.');
+$('entries').innerHTML=visibleEntries.length?visibleEntries.map(r=>`<div class="row"><div class="entry-content"><span class="row-name">${escape(r.name)}</span><span class="row-detail">${number(r.calories)} kcal · ${number(r.protein)} g protein</span></div>${entryMenu(r.id,r.name,true)}</div>`).join(''):empty('No entries.');
 const averages=recentMacroAverages(data.entries);
 $('macro-avg-calories').innerHTML=(averages.calories===null?'—':number(Math.round(averages.calories)))+'<span> kcal</span>';
 $('macro-avg-protein').innerHTML=(averages.protein===null?'—':number(Math.round(averages.protein*10)/10))+'<span> g</span>';
@@ -289,7 +297,7 @@ cloud=createCloud({
     let next=stored?validate(JSON.parse(stored)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};
     if(user&&!stored&&KEY===GUEST_KEY&&(data.entries.length||data.foods.length||data.weights.length)&&confirm('Copy this device’s existing Daily data into this account? It will merge with your cloud history.'))next=structuredClone(data);
     localStorage.setItem(nextKey,JSON.stringify(next));
-    KEY=nextKey;data=next;loadFailed=false;undoState=null;render();
+    KEY=nextKey;expandedFoods=false;expandedEntriesDate=null;data=next;loadFailed=false;undoState=null;render();
   },
   apply:next=>{if(loadFailed)throw Error('Restore your unreadable local data before syncing.');localStorage.setItem(KEY,JSON.stringify(next));data=next;undoState=null;render();},
   status:(message,user,configured)=>{
