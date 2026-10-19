@@ -1,7 +1,7 @@
 import {cloudConfig} from './cloud-config.mjs';
 import {emptyData,reconcile} from './sync-core.mjs';
-import {validate} from './core.mjs?v=43';
-const SESSION='daily-cloud-session', BASE='daily-cloud-base-';
+import {validate} from './core.mjs?v=44';
+const SESSION='daily-cloud-session', BASE='daily-cloud-base-', PENDING='daily-cloud-login-email';
 export function createCloud({read,activate,apply,status},config=cloudConfig){
   const configured=!!config.url&&!!config.key;
   let session=null, running=null, generation=0, refresh=null, dirty=false;
@@ -71,7 +71,19 @@ export function createCloud({read,activate,apply,status},config=cloudConfig){
       email=email.trim();
       if(!email)throw Error('Enter your email address.');
       await request('/auth/v1/otp?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email,create_user:true});
-      return 'Check your email for a login link. New here? The link creates your account too.';
+      try{localStorage.setItem(PENDING,email);}catch{}
+      return 'Check your email. In the Home Screen app, enter the email code here instead of opening the link.';
+    },
+    pendingEmail(){try{return localStorage.getItem(PENDING)||'';}catch{return '';}},
+    async verifyCode(email,code){
+      email=email.trim();code=code.replace(/\s/g,'');
+      if(!email)throw Error('Enter the email address you used to request the code.');
+      if(!/^\d{6,10}$/.test(code))throw Error('Enter the numeric code from your email.');
+      const value=await request('/auth/v1/verify',{email,token:code,type:'email'});
+      if(!value?.access_token||!value?.refresh_token)throw Error('Could not sign in. Request a new email code.');
+      await attach(value);
+      try{localStorage.removeItem(PENDING);}catch{}
+      return 'Signed in.';
     },
     async signOut(){
       generation++;const previous=session;session=null;localStorage.removeItem(SESSION);

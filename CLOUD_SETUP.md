@@ -59,3 +59,17 @@ The project URL and publishable key are configured. The owner has run the SQL
 and configured redirect URLs and Brevo custom SMTP. Live login email delivery,
 account isolation and syncing still require verification. The client includes a
 legacy meals alias on uploads to remain compatible with the installed SQL.
+
+## Home Screen app login
+
+Safari and an installed iOS web app can use separate sessions. Opening a magic
+link in Safari cannot be assumed to sign the Home Screen app in. Daily also
+accepts the email code directly in whichever app requests it. It remembers the
+pending email address locally, never the code.
+
+In Authentication > Emails > Templates, replace the bodies of both **Magic
+Link** and **Confirm signup** with `supabase/login-email.html`. Keep both
+`{{ .Token }}` and `{{ .ConfirmationURL }}` so users can choose a code or link.
+The code and link are alternatives: after either is used, request a new email
+before trying the other. Test the code in the Home Screen app without opening
+the email link first. No SMTP, SQL, password or database changes are needed.

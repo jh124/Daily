@@ -1,5 +1,5 @@
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=43';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=44';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=GUEST_KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -287,7 +287,7 @@ cloud=createCloud({
   apply:next=>{if(loadFailed)throw Error('Restore your unreadable local data before syncing.');localStorage.setItem(KEY,JSON.stringify(next));data=next;undoState=null;render();},
   status:(message,user,configured)=>{
     $('cloud-status').textContent=message;$('account-email').textContent=user?.email||'Optional cloud backup';
-    $('auth-form').hidden=!!user||!configured;$('account-actions').hidden=!user;
+    $('auth-form').hidden=!!user||!configured;$('code-form').hidden=!!user||!configured;$('account-actions').hidden=!user;
     $('cloud-unavailable').hidden=configured;$('account-open').textContent=user?'Account & sync':'Account / cloud sync';
   }
 });
@@ -299,7 +299,9 @@ async function accountAction(action){
   catch(err){$('account-message').textContent=err.message;}
   finally{buttons.forEach(b=>b.disabled=false);}
 }
-$('auth-form').onsubmit=e=>{e.preventDefault();accountAction(()=>cloud.sendLink($('account-login-email').value.trim()));};
+$('account-login-email').value=cloud.pendingEmail();
+$('auth-form').onsubmit=e=>{e.preventDefault();accountAction(async()=>{const message=await cloud.sendLink($('account-login-email').value.trim());$('account-code').value='';$('account-code').focus();return message;});};
+$('code-form').onsubmit=e=>{e.preventDefault();if(!$('account-login-email').reportValidity())return;accountAction(async()=>{const message=await cloud.verifyCode($('account-login-email').value.trim(),$('account-code').value);$('account-code').value='';return message;});};
 $('account-sync').onclick=()=>accountAction(()=>cloud.sync());
 $('account-signout').onclick=()=>{if(confirm('Sign out? Unsynced changes stay on this device for this account. Your separate guest log will reopen.'))accountAction(()=>cloud.signOut());};
 $('account-delete').onclick=()=>{if(confirm('Permanently delete this account and its cloud history? Export a backup first if you want to keep it.'))accountAction(()=>cloud.deleteAccount());};
