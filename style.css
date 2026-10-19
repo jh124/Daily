@@ -177,3 +177,20 @@ html,body{touch-action:pan-x pan-y}
 #storage-notice .maintenance-explanation p{line-height:1.65}
 @keyframes drawer-enter{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @media(prefers-reduced-motion:reduce){#account-dialog[open]{animation:none}}
+
+/* Rounded drawer and compact preference controls. */
+#user-menu-toggle{border:1px solid var(--line);background:var(--surface,#fff);box-shadow:0 2px 6px #24382e06}
+#account-dialog.settings-drawer{inset:8px 8px 8px auto;width:52vw;min-width:200px;max-width:calc(100vw - 24px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);border:1px solid var(--line);border-radius:24px;padding:max(25px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom));box-shadow:-8px 8px 38px #18281c20;scrollbar-width:thin}
+#account-dialog::backdrop{background:#18281c2b;backdrop-filter:blur(2px)}
+.menu-section{padding:20px 0;border-color:var(--line)}
+.menu-section:first-child{padding-top:0;border-top:0}
+.menu-section h3{font-size:13px;letter-spacing:.1px;margin-bottom:12px}
+.menu-button{padding:11px 8px;margin:2px -8px;width:calc(100% + 16px);border-radius:10px}
+.preference-pill{display:flex;position:relative;isolation:isolate;width:100%;height:44px;padding:4px;border:1px solid var(--line);border-radius:24px;background:var(--bg);margin-top:12px}
+.preference-indicator{position:absolute;z-index:-1;left:4px;top:4px;width:calc(50% - 4px);height:34px;border-radius:20px;background:var(--accent);box-shadow:0 2px 6px #24382e12;transition:transform .22s ease}
+.preference-pill[data-selected="second"] .preference-indicator{transform:translateX(100%)}
+.preference-pill button{display:grid;place-items:center;flex:1;min-width:0;height:34px;padding:0;border:0;border-radius:20px;background:transparent;color:var(--muted);font-size:13px;font-weight:500;transition:color .2s}
+.preference-pill button[aria-pressed="true"]{color:#fff}
+[data-theme="dark"] .preference-indicator{background:#a3c58e}
+[data-theme="dark"] .preference-pill button[aria-pressed="true"]{color:#101b13}
+.drawer-version{margin-top:4px;font-size:10px;opacity:.75}

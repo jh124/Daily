@@ -1,5 +1,5 @@
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=45';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=46';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
 const PREF_KEY=GUEST_KEY+'-preferences';let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{};}catch{}
@@ -7,15 +7,16 @@ let weightUnit=preferences.weightUnit==='kg'?'kg':'lb';
 const displayWeight=pounds=>weightToUnit(pounds,weightUnit),internalWeight=value=>weightFromUnit(value,weightUnit);
 const weightNumber=pounds=>Number(displayWeight(pounds).toFixed(2));
 function updateWeightInputs(){for(const id of ['weight-input','edit-weight-value']){$(id).max=weightUnit==='kg'?'907.18':'2000';$(id).min='0.01';}document.querySelectorAll('[data-weight-unit]').forEach(el=>el.textContent=weightUnit);$('edit-weight-label').textContent='Weight ('+weightUnit+')';$('maintenance-energy-unit').textContent=weightUnit==='kg'?'7,700 kcal per kilogram':'3,500 kcal per pound';$('weight-input').placeholder='0';}
-function setWeightUnit(next){if(!['lb','kg'].includes(next)||weightUnit===next)return;weightUnit=next;$('weight-unit-select').value=weightUnit;$('weight-input').value='';$('edit-weight-value').value='';updateWeightInputs();renderWeight();renderMaintenance();savePreferences();toast('Weight units: '+weightUnit);}
+function setWeightUnit(next){if(!['lb','kg'].includes(next)||weightUnit===next)return;weightUnit=next;updateWeightPreference();$('weight-input').value='';$('edit-weight-value').value='';updateWeightInputs();renderWeight();renderMaintenance();savePreferences();toast('Weight units: '+weightUnit);}
 
 function savePreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({view,chartRange:$('chart-range').value,trendRange:$('trend-range').value,theme:document.documentElement.dataset.theme==='dark'?'dark':'light',weightUnit}));}catch{}}
 
-function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-select').value=dark?'dark':'light';document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
+function setTheme(theme){const dark=theme==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme-pill').dataset.selected=dark?'second':'first';$('theme-light').setAttribute('aria-pressed',String(!dark));$('theme-dark').setAttribute('aria-pressed',String(dark));document.querySelector('meta[name="theme-color"]').content=dark?'#171e1b':'#f5f5ef';}
 setTheme(preferences.theme==='dark'?'dark':'light');
-$('theme-select').onchange=()=>{setTheme($('theme-select').value);savePreferences();};
-$('weight-unit-select').value=weightUnit;
-$('weight-unit-select').onchange=()=>setWeightUnit($('weight-unit-select').value);
+for(const theme of ['light','dark'])$('theme-'+theme).onclick=()=>{setTheme(theme);savePreferences();};
+function updateWeightPreference(){$('weight-unit-pill').dataset.selected=weightUnit==='kg'?'second':'first';$('weight-lb').setAttribute('aria-pressed',String(weightUnit==='lb'));$('weight-kg').setAttribute('aria-pressed',String(weightUnit==='kg'));}
+updateWeightPreference();
+for(const unit of ['lb','kg'])$('weight-'+unit).onclick=()=>setWeightUnit(unit);
 function toast(msg,duration){$('toast-message').textContent=msg;$('undo-button').hidden=!undoState;$('toast').classList.add('show');clearTimeout(timer);timer=setTimeout(()=>{$('toast').classList.remove('show');undoState=null;$('undo-button').hidden=true;},duration??(undoState?5000:4000));}
 let loadFailed=false;try{const stored=localStorage.getItem(KEY);if(stored){const restored=validate(JSON.parse(stored));data={...restored,foods:restored.foods??restored.meals??[]};}}catch{loadFailed=true;toast('Saved data could not be read. Export or restore a backup before making changes.');}
 function save(next,undoable=true){if(loadFailed){toast('Storage could not be read. Import a valid backup to restore it.');return false;}try{next=validate(next);next={...next,foods:next.foods??next.meals??[]};const before=JSON.stringify(data),after=JSON.stringify(next);localStorage.setItem(KEY,after);undoState=undoable?{before,after}:null;data=next;cloud?.changed();render();toast('Saved.');return true;}catch{toast('Could not save. Check values or export a backup and free up storage.');return false;}}
@@ -253,7 +254,7 @@ $('account-dialog').addEventListener('click',e=>{if(e.target!==$('account-dialog
 function download(content,extension,mime){const url=URL.createObjectURL(new Blob([content],{type:mime}));const a=document.createElement('a');a.href=url;a.download=`daily-backup-${today()}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);closeTools();}
 $('export-json').onclick=()=>{if(loadFailed){const raw=localStorage.getItem(KEY);if(raw)download(raw,'json','application/json');else toast('No saved data available.');return;}download(JSON.stringify({...exportBackup(data,weightUnit),exportedAt:new Date().toISOString()},null,2),'json','application/json');};$('export-csv').onclick=()=>download(toCSV(data,weightUnit),'csv','text/csv;charset=utf-8');$('import-button').onclick=()=>$('import-file').click();
 $('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw Error('Backup is too large (maximum 20 MB).');const raw=await file.text(),incoming=file.name.toLowerCase().endsWith('.csv')?fromCSV(raw):validate(JSON.parse(raw));const counts=`${incoming.entries.length} macro entries, ${incoming.foods.length} foods, and ${incoming.weights.length} weigh-ins`;if(confirm(`Import ${counts}? This merges with your data. Matching IDs and weigh-in dates use the imported values.`)){const next=merge(data,incoming);if(loadFailed){localStorage.setItem(KEY,JSON.stringify(next));data=next;loadFailed=false;cloud?.changed();render();toast('Backup restored.');}else if(save(next))toast('Data imported.');closeTools();}}catch(err){toast(err.message||'Could not import this file.');}finally{e.target.value='';}};
-window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');weightUnit=p.weightUnit==='kg'?'kg':'lb';$('weight-unit-select').value=weightUnit;updateWeightInputs();renderWeight();renderMaintenance();}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
+window.addEventListener('storage',e=>{if(e.key===PREF_KEY){try{const p=JSON.parse(e.newValue||'{}');setTheme(p.theme==='dark'?'dark':'light');weightUnit=p.weightUnit==='kg'?'kg':'lb';updateWeightPreference();updateWeightInputs();renderWeight();renderMaintenance();}catch{};}if(e.key===KEY){undoState=null;$('undo-button').hidden=true;try{data=e.newValue?validate(JSON.parse(e.newValue)):{app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]};data={...data,foods:data.foods??data.meals??[]};render();}catch{toast('Data changed in another tab but could not be read.');}}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){const oldMax=$('macro-date').max;if(selected===oldMax)selected=today();$('macro-date').value=selected;$('macro-date').max=today();$('weight-date').max=today();render();}});updateWeightInputs();setView(preferences.view==='table'?'table':'graph');switchPage('macro');showStorageNotice();// iOS Safari can still dispatch native pinch gestures despite viewport settings.
 for(const type of ['gesturestart','gesturechange']){
   document.addEventListener(type,e=>e.preventDefault(),{passive:false});
@@ -299,7 +300,6 @@ cloud=createCloud({
     $('storage-notice-close').textContent=user?'Continue':'Continue without an account';
   }
 });
-$('account-close').onclick=closeTools;
 async function accountAction(action){
   const buttons=[...$('account-dialog').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
   try{const message=await action();if(message)$('account-message').textContent=message;else $('account-message').textContent='';}
