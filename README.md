@@ -29,3 +29,7 @@ Replace the app files in the same repository and commit. GitHub Pages republishe
 ## Regression tests
 
 Run `node --test tests/core.test.mjs` (Node.js 20+) before publishing. Tests cover maintenance estimation, weight trends, JSON validation, legacy backups and CSV import/export.
+
+## Optional cloud accounts
+
+Passwordless email-link accounts and offline syncing use Supabase. Guest data stays local. See [CLOUD_SETUP.md](CLOUD_SETUP.md) for setup and live verification.
