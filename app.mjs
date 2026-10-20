@@ -1,5 +1,5 @@
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=48';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=49';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let expandedFoods=false,expandedEntriesDate=null;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
@@ -258,6 +258,8 @@ function drawChart(rows,min){
   $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight chart with ${rows.length} weigh-ins in ${weightUnit}"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a7c88b" stop-opacity=".35"/><stop offset="1" stop-color="#a7c88b" stop-opacity=".01"/></linearGradient></defs>${grid}<path d="${path}" fill="url(#fill)"/><polyline points="${pts}" fill="none" stroke="#719752" stroke-width="2" stroke-linejoin="round"/>${rows.map(r=>`<circle tabindex="0" role="button" aria-label="${dateLabel(r.date)}, ${number(displayWeight(r.weight))} ${weightUnit}" data-date="${r.date}" cx="${x(r.date)}" cy="${y(displayWeight(r.weight))}" r="4.5" fill="#719752" stroke="white" stroke-width="2"><title>${dateLabel(r.date)} · ${number(displayWeight(r.weight))} ${weightUnit}</title></circle>`).join('')}<text x="${L}" y="${H-6}">${new Date(x0*86400000).toLocaleDateString(undefined,{month:'short',day:'numeric',...(new Date(x0*86400000).getUTCFullYear()!==Number(today().slice(0,4))?{year:'numeric'}:{}),timeZone:'UTC'})}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${dateLabel(today())}</text></svg><div class="chart-selection" id="chart-selection">${dateLabel(rows.at(-1).date)} · ${number(displayWeight(rows.at(-1).weight))} ${weightUnit}</div>`;
   const select=e=>{const d=e.target.dataset.date;if(d){const r=rows.find(r=>r.date===d);$('chart-selection').textContent=`${dateLabel(d)} · ${number(displayWeight(r.weight))} ${weightUnit}`;}};$('chart').onclick=select;$('chart').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(e);}};
 }
+function openMenuCategory(category){for(const name of ['account','data','preferences']){const open=name===category;$(name+'-category').setAttribute('aria-expanded',String(open));$(name+'-options').hidden=!open;}}
+for(const name of ['account','data','preferences'])$(name+'-category').onclick=()=>openMenuCategory($(name+'-options').hidden?name:null);
 function closeTools(){$('account-dialog').close();}
 function openAccount(){closeEntryMenus();if($('storage-notice').open)$('storage-notice').close();if(!$('account-dialog').open)$('account-dialog').showModal();$('user-menu-toggle').setAttribute('aria-expanded','true');}
 $('user-menu-toggle').onclick=openAccount;
@@ -285,7 +287,7 @@ if('serviceWorker' in navigator){
 
 function showStorageNotice(){
   const noticeKey=GUEST_KEY+'-storage-notice-v2-seen';
-  $('storage-notice-account').onclick=()=>{openAccount();if(!$('auth-form').hidden)$('account-login-email').focus();};
+  $('storage-notice-account').onclick=()=>{openMenuCategory('account');openAccount();if(!$('auth-form').hidden)$('account-login-email').focus();};
   $('storage-notice-close').onclick=()=>$('storage-notice').close();
   $('storage-notice').onclose=()=>{try{localStorage.setItem(noticeKey,'1');}catch{}};
   try{if(localStorage.getItem(noticeKey)==='1')return;}catch{}
