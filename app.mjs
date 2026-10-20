@@ -1,5 +1,6 @@
+import {cloudConfig} from './cloud-config.mjs';
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=49';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=50';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let expandedFoods=false,expandedEntriesDate=null;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
@@ -263,6 +264,24 @@ for(const name of ['account','data','preferences'])$(name+'-category').onclick=(
 function closeTools(){$('account-dialog').close();}
 function openAccount(){closeEntryMenus();if($('storage-notice').open)$('storage-notice').close();if(!$('account-dialog').open)$('account-dialog').showModal();$('user-menu-toggle').setAttribute('aria-expanded','true');}
 $('user-menu-toggle').onclick=openAccount;
+$('report-issue').onclick=()=>{$('issue-status').textContent='';$('issue-dialog').showModal();};
+$('issue-cancel').onclick=()=>$('issue-dialog').close();
+let sendingIssue=false;
+$('issue-dialog').addEventListener('cancel',e=>{if(sendingIssue)e.preventDefault();});
+$('issue-form').onsubmit=async e=>{
+  e.preventDefault();if(sendingIssue)return;
+  const description=$('issue-description').value.trim();
+  if(!description){$('issue-status').textContent='Describe the issue first.';return;}
+  sendingIssue=true;$('issue-send').disabled=true;$('issue-cancel').disabled=true;$('issue-description').readOnly=true;$('issue-status').textContent='Sending…';
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+  try{
+    const response=await fetch(cloudConfig.url+'/functions/v1/report-issue',{method:'POST',headers:{apikey:cloudConfig.key,'Content-Type':'application/json'},body:JSON.stringify({description,version:document.querySelector('.drawer-version').textContent.trim()}),signal:controller.signal});
+    if(!response.ok){$('issue-status').textContent=response.status===429?'Too many reports have been submitted. Please try again later.':'Your report could not be sent. Please try again later.';return;}
+    const result=await response.json();if(result.message!=='Report sent. Thank you!')throw Error('Unexpected response');
+    $('issue-description').value='';$('issue-dialog').close();toast('Report sent. Thank you!');
+  }catch{$('issue-status').textContent='Sending could not be confirmed. Your description is still here; please try again later.';}
+  finally{clearTimeout(timeout);sendingIssue=false;$('issue-send').disabled=false;$('issue-cancel').disabled=false;$('issue-description').readOnly=false;}
+};
 $('account-dialog').onclose=()=>$('user-menu-toggle').setAttribute('aria-expanded','false');
 $('account-dialog').addEventListener('click',e=>{if(e.target!==$('account-dialog'))return;const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeTools();});
 function download(content,extension,mime){const url=URL.createObjectURL(new Blob([content],{type:mime}));const a=document.createElement('a');a.href=url;a.download=`daily-backup-${today()}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);closeTools();}

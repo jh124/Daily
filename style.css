@@ -207,3 +207,13 @@ html,body{touch-action:pan-x pan-y}
 .menu-category[aria-expanded="true"] svg{transform:rotate(180deg)}
 .menu-section>div{padding-bottom:12px}
 .menu-section>div>.preference-label:first-child{margin-top:8px}
+
+#account-dialog.settings-drawer{overflow:hidden}
+#account-dialog.settings-drawer[open]{display:flex;flex-direction:column}
+.drawer-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.drawer-footer{flex-shrink:0;border-top:1px solid var(--line);padding-top:10px}
+.drawer-footer .drawer-version{margin:10px 0 0}
+#issue-form h2{margin:0 0 20px}
+#issue-description{display:block;resize:vertical;width:100%;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+#issue-form .muted{font-size:12px;line-height:1.5}
+.issue-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
