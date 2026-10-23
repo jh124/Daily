@@ -18,25 +18,26 @@ test('normalizes surrounding whitespace and keeps recipient server controlled',a
 });
 test('malformed configuration stops before rate counter and email requests',async()=>{
   const f=fixture({secrets:{BREVO_SENDER_EMAIL:'<verified@example.com>'}});
-  assert.equal((await f.send()).status,503);assert.equal(f.calls.length,0);
+  const response=await f.send();assert.equal(response.status,503);assert.equal((await response.json()).diagnostic,'CONFIG_SENDER_FORMAT');assert.equal(f.calls.length,0);
   assert.deepEqual(f.logs,[{event:'report_issue_config_error',setting:'BREVO_SENDER_EMAIL',reason:'enter_bare_email_address'}]);
 });
 test('provider rejection logs only controlled diagnostics',async()=>{
   const f=fixture({providerStatus:401,providerBody:{code:'unauthorized',message:'Unrecognised IP address 192.0.2.1; private-key; recipient@example.com; Private issue description'}});
   const response=await f.send();assert.equal(response.status,502);
+  assert.equal((await response.clone().json()).diagnostic,'BREVO_401_UNAUTHORIZED_IP');
   assert.deepEqual(f.logs,[{event:'report_issue_brevo_error',status:401,code:'unauthorized',reason:'sending_server_ip_not_authorized'}]);
   const output=JSON.stringify(f.logs)+await response.text();for(const value of ['192.0.2.1','private-key','recipient@example.com','Private issue description'])assert.equal(output.includes(value),false);
 });
 test('sender rejection is distinguished from API credentials',async()=>{
   const f=fixture({providerStatus:400,providerBody:{code:'invalid_parameter',message:'Sender verified@example.com is not valid'}});
-  assert.equal((await f.send()).status,502);assert.equal(f.logs[0].reason,'sender_configuration_rejected');
+  const response=await f.send();assert.equal(response.status,502);assert.equal((await response.json()).diagnostic,'BREVO_400_INVALID_PARAMETER_SENDER');assert.equal(f.logs[0].reason,'sender_configuration_rejected');
 });
 test('unexpected or malformed provider errors do not leak content',async()=>{
   for(const providerBody of [{code:'private-key',message:'Private issue description'},'<html>private-key</html>']){
-    const f=fixture({providerStatus:500,providerBody});assert.equal((await f.send()).status,502);
+    const f=fixture({providerStatus:500,providerBody});const response=await f.send();assert.equal(response.status,502);assert.equal((await response.json()).diagnostic,'BREVO_500_UNKNOWN_OTHER');
     assert.deepEqual(f.logs,[{event:'report_issue_brevo_error',status:500,code:'unknown',reason:'see_provider_status_and_code'}]);
   }
 });
 test('rate denial still prevents email sending',async()=>{
-  const f=fixture({allowed:false});assert.equal((await f.send()).status,429);assert.equal(f.calls.length,1);assert.deepEqual(f.logs,[]);
+  const f=fixture({allowed:false});const response=await f.send();assert.equal(response.status,429);assert.equal((await response.json()).diagnostic,'REPORT_LIMIT');assert.equal(f.calls.length,1);assert.deepEqual(f.logs,[]);
 });

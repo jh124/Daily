@@ -217,3 +217,4 @@ html,body{touch-action:pan-x pan-y}
 #issue-description{display:block;resize:vertical;width:100%;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
 #issue-form .muted{font-size:12px;line-height:1.5}
 .issue-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+#issue-status{font-size:12px;line-height:1.6;overflow-wrap:anywhere}

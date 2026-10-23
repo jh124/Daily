@@ -1,7 +1,7 @@
 // Public, guest-accessible endpoint. Rate limits are enforced in Postgres.
 const origin = 'https://jh124.github.io';
 const cors = {'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Vary': 'Origin'};
-const reply = (status, message) => new Response(JSON.stringify({message}), {status, headers: {...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store'}});
+const reply = (status, message, diagnostic) => new Response(JSON.stringify({message, ...(diagnostic ? {diagnostic} : {})}), {status, headers: {...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store'}});
 // Log only fixed categories. Provider messages can contain private addresses/IPs.
 async function logBrevoFailure(response) {
   let error; try {error = await response.json();} catch {}
@@ -16,6 +16,8 @@ async function logBrevoFailure(response) {
   else if (/validat|activat|suspend/.test(message)) reason = 'account_activation_or_review';
   else if (/recipient|\bto\b/.test(message)) reason = 'recipient_rejected';
   console.error(JSON.stringify({event: 'report_issue_brevo_error', status: response.status, code, reason}));
+  const category = {sending_server_ip_not_authorized:'IP', sender_configuration_rejected:'SENDER', api_key_rejected:'KEY', email_quota_or_credits:'QUOTA', account_activation_or_review:'ACCOUNT', recipient_rejected:'RECIPIENT'}[reason] || 'OTHER';
+  return 'BREVO_' + response.status + '_' + code.toUpperCase() + '_' + category;
 }
 Deno.serve(async req => {
   if (req.headers.get('origin') !== origin) return reply(403, 'Request not allowed.');
@@ -26,11 +28,11 @@ Deno.serve(async req => {
   const recipient = Deno.env.get('REPORT_TO_EMAIL')?.trim();
   const url = Deno.env.get('SUPABASE_URL');
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!key || !sender || !recipient || !url || !service) return reply(503, 'Issue reporting is not available yet. Please try again later.');
+  if (!key || !sender || !recipient || !url || !service) return reply(503, 'Issue reporting is not available yet. Please try again later.', 'CONFIG_MISSING');
   for (const [name, value] of [['BREVO_SENDER_EMAIL', sender], ['REPORT_TO_EMAIL', recipient]]) {
     if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(value)) {
       console.error(JSON.stringify({event: 'report_issue_config_error', setting: name, reason: 'enter_bare_email_address'}));
-      return reply(503, 'Issue reporting is not available yet. Please try again later.');
+      return reply(503, 'Issue reporting is not available yet. Please try again later.', name === 'BREVO_SENDER_EMAIL' ? 'CONFIG_SENDER_FORMAT' : 'CONFIG_RECIPIENT_FORMAT');
     }
   }
   let body;
@@ -45,6 +47,7 @@ Deno.serve(async req => {
   const description = typeof body?.description === 'string' ? body.description.trim() : '';
   const version = typeof body?.version === 'string' && /^v\d{1,5}$/.test(body.version) ? body.version : 'unknown';
   if (!description || description.length > 4000) return reply(400, 'Enter a description of up to 4,000 characters.');
+  let stage = 'RATE_SERVICE';
   try {
     // Daily salted hash: no raw IP addresses or report text stored in the database.
     // The global cap remains effective even if an attacker rotates/spoofs IPs.
@@ -52,13 +55,14 @@ Deno.serve(async req => {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key + new Date().toISOString().slice(0,10) + ip));
     const client = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('');
     const limit = await fetch(url + '/rest/v1/rpc/daily_issue_allow', {method:'POST', headers:{apikey:service, Authorization:'Bearer '+service, 'Content-Type':'application/json'}, body:JSON.stringify({client_hash:client}), signal:AbortSignal.timeout(10000)});
-    if (!limit.ok) return reply(503, 'Issue reporting is temporarily unavailable. Please try again later.');
-    if (await limit.json() !== true) return reply(429, 'Too many reports have been submitted. Please try again later.');
+    if (!limit.ok) return reply(503, 'Issue reporting is temporarily unavailable. Please try again later.', 'RATE_SERVICE_' + limit.status);
+    if (await limit.json() !== true) return reply(429, 'Too many reports have been submitted. Please try again later.', 'REPORT_LIMIT');
+    stage = 'BREVO';
     const result = await fetch('https://api.brevo.com/v3/smtp/email', {method:'POST', headers:{'api-key':key, 'Content-Type':'application/json', accept:'application/json'}, body:JSON.stringify({sender:{name:'Daily',email:sender},to:[{email:recipient}],subject:'Daily issue report',textContent:'Daily version: '+version+'\n\n'+description}), signal:AbortSignal.timeout(15000)});
     if (!result.ok) {
-      await logBrevoFailure(result);
-      return reply(502, 'Your report could not be sent. Please try again later.');
+      const diagnostic = await logBrevoFailure(result);
+      return reply(502, 'Your report could not be sent. Please try again later.', diagnostic);
     }
     return reply(200, 'Report sent. Thank you!');
-  } catch {return reply(503, 'Sending could not be confirmed. Please try again later.');}
+  } catch {return reply(503, 'Sending could not be confirmed. Please try again later.', 'NETWORK_' + stage);}
 });

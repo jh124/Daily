@@ -1,6 +1,6 @@
 import {cloudConfig} from './cloud-config.mjs';
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=50';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=51';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 let expandedFoods=false,expandedEntriesDate=null;
 let undoState=null,editingEntry=null,editingFood=null,editingWeightDate=null,foodDuplicateTimer;
@@ -276,10 +276,15 @@ $('issue-form').onsubmit=async e=>{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
   try{
     const response=await fetch(cloudConfig.url+'/functions/v1/report-issue',{method:'POST',headers:{apikey:cloudConfig.key,'Content-Type':'application/json'},body:JSON.stringify({description,version:document.querySelector('.drawer-version').textContent.trim()}),signal:controller.signal});
-    if(!response.ok){$('issue-status').textContent=response.status===429?'Too many reports have been submitted. Please try again later.':'Your report could not be sent. Please try again later.';return;}
-    const result=await response.json();if(result.message!=='Report sent. Thank you!')throw Error('Unexpected response');
+    const result=await response.json().catch(()=>null);
+    if(!response.ok){
+      const diagnostic=typeof result?.diagnostic==='string'&&/^[A-Z0-9_]{1,100}$/.test(result.diagnostic)?result.diagnostic:'HTTP_'+response.status;
+      const message=response.status===429?'Too many reports have been submitted. Please try again later.':'Your report could not be sent. Please try again later.';
+      $('issue-status').textContent=message+' (Code: '+diagnostic+')';return;
+    }
+    if(result?.message!=='Report sent. Thank you!')throw Error('Unexpected response');
     $('issue-description').value='';$('issue-dialog').close();toast('Report sent. Thank you!');
-  }catch{$('issue-status').textContent='Sending could not be confirmed. Your description is still here; please try again later.';}
+  }catch{$('issue-status').textContent='Sending could not be confirmed. Your description is still here; please try again later. (Code: NETWORK_OR_RESPONSE)';}
   finally{clearTimeout(timeout);sendingIssue=false;$('issue-send').disabled=false;$('issue-cancel').disabled=false;$('issue-description').readOnly=false;}
 };
 $('account-dialog').onclose=()=>$('user-menu-toggle').setAttribute('aria-expanded','false');
