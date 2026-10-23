@@ -17,6 +17,10 @@ else if(p==='/rest/v1/rpc/daily_sync'){
 const {createCloud}=await import('../cloud.mjs');
 const cloud=createCloud({read:()=>local,activate:async id=>{user=id;},apply:d=>{local=d;},status:text=>{status=text;}},{url:'https://cloud.test',key:'public-test'});
 const row={id:'a',date:'2026-10-01',name:'Milk',calories:500,protein:20};local.entries.push(row);assert.match(await cloud.sendCode(' jack@example.com '),/Check your email/);assert.equal(user,null);assert.equal(cloud.pendingEmail(),'jack@example.com');await cloud.start();assert.equal(location.hash,'');assert.equal(remote.entries.length,1);assert.match(status,/Synced/);assert.equal(user,'u1');
+local.foods=['first','second','third'].map(id=>({id,name:id,calories:100,protein:10}));await cloud.sync();
+local.foods=[local.foods[2],...local.foods.slice(0,2)];await cloud.sync();
+assert.deepEqual(local.foods.map(r=>r.id),['third','first','second']);assert.deepEqual(remote.foods.map(r=>r.id),['third','first','second']);
+await cloud.sync();assert.deepEqual(local.foods.map(r=>r.id),['third','first','second']);
 local.entries=[];navigator.onLine=false;await cloud.sync();assert.equal(remote.entries.length,1);assert.match(status,/Offline/);navigator.onLine=true;await cloud.sync();assert.equal(remote.entries.length,0);assert.match(status,/Synced/);
 await cloud.signOut();assert.equal(user,null);assert.equal(storage.get('daily-cloud-session'),undefined);
 await assert.rejects(()=>cloud.verifyCode('jack@example.com','abc'),/numeric code/);assert.equal(verifyCalls,0);

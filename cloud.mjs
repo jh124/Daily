@@ -1,6 +1,6 @@
 import {cloudConfig} from './cloud-config.mjs';
-import {emptyData,reconcile} from './sync-core.mjs';
-import {validate} from './core.mjs?v=47';
+import {emptyData,reconcile} from './sync-core.mjs?v=52';
+import {validate} from './core.mjs?v=52';
 const SESSION='daily-cloud-session', BASE='daily-cloud-base-', PENDING='daily-cloud-login-email';
 export function createCloud({read,activate,apply,status},config=cloudConfig){
   const configured=!!config.url&&!!config.key;
