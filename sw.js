@@ -1,14 +1,14 @@
 // Offline-first app shell: opening Daily never needs to wait for a network request.
 // Updates are delivered by a new service worker version; cloud requests stay network-based.
-const CACHE='daily-v53';
+const CACHE='daily-v54';
 const ASSETS=[
   './index.html',
-  './style.css?v=53',
-  './app.mjs?v=53',
-  './core.mjs?v=53',
-  './cloud.mjs',
+  './style.css?v=54',
+  './app.mjs?v=54',
+  './core.mjs?v=54',
+  './cloud.mjs?v=54',
   './cloud-config.mjs',
-  './sync-core.mjs?v=53',
+  './sync-core.mjs?v=54',
   './manifest.webmanifest',
   './icon.svg',
   './icon.png'

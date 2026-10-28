@@ -1,6 +1,6 @@
 import {cloudConfig} from './cloud-config.mjs';
-import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=53';
+import {createCloud} from './cloud.mjs?v=54';
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=54';
 const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;try{const session=JSON.parse(localStorage.getItem('daily-cloud-session')||'null');if(session?.user?.id)KEY=GUEST_KEY+'-user-'+session.user.id;}catch{}let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 // Safari may draw a focus ring on the first control when a dialog is opened by
 // a tap. Keep rings for keyboard navigation without changing actual focus.
