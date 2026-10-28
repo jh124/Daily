@@ -1,7 +1,7 @@
 import {cloudConfig} from './cloud-config.mjs';
 import {createCloud} from './cloud.mjs';
-import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=52';
-const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
+import {today,dayNumber,cutoff,trend,validate,merge,toCSV,fromCSV,estimateMaintenance,weightToUnit,weightFromUnit,exportBackup,isDuplicateFood,hasNonzeroMacros,recentMacroAverages} from './core.mjs?v=53';
+const $=id=>document.getElementById(id),GUEST_KEY='daily-macros-weight-v1';let KEY=GUEST_KEY;try{const session=JSON.parse(localStorage.getItem('daily-cloud-session')||'null');if(session?.user?.id)KEY=GUEST_KEY+'-user-'+session.user.id;}catch{}let cloud;let data={app:'daily-macros-weight',version:1,entries:[],foods:[],weights:[]},selected=today(),page='macro',view='graph',timer;
 // Safari may draw a focus ring on the first control when a dialog is opened by
 // a tap. Keep rings for keyboard navigation without changing actual focus.
 document.addEventListener('pointerdown',()=>{delete document.documentElement.dataset.keyboardFocus;},true);
@@ -184,7 +184,7 @@ $('edit-weight-form').onsubmit=e=>{
 };
 function setView(v){view=v;$('graph-panel').hidden=v!=='graph';$('weight-table').hidden=v!=='table';for(const t of ['graph','table']){$(t+'-view').classList.toggle('active',v===t);$(t+'-view').setAttribute('aria-pressed',String(v===t));}savePreferences();}
 $('graph-view').onclick=()=>setView('graph');$('table-view').onclick=()=>setView('table');$('chart-range').onchange=()=>{renderWeight();savePreferences();};$('trend-range').onchange=()=>{renderWeight();savePreferences();};
-function render(){renderMacros();renderWeight();renderMaintenance();}
+function render(){if(page==='macro')renderMacros();else if(page==='weight')renderWeight();else renderMaintenance();}
 $('foods-show-more').onclick=()=>{expandedFoods=true;renderMacros();};
 $('entries-show-more').onclick=()=>{expandedEntriesDate=selected;renderMacros();};
 function renderMacros(){const entries=data.entries.filter(r=>r.date===selected);$('cal-total').innerHTML=number(entries.reduce((s,r)=>s+r.calories,0))+'<span> kcal</span>';$('protein-total').innerHTML=number(entries.reduce((s,r)=>s+r.protein,0))+'<span> g</span>';$('day-label').textContent=selected===today()?'Today':dateLabel(selected);$('next-day').disabled=selected>=today();$('log-label').textContent=selected===today()?'Add to today':'Add to this day';$('entries-title').textContent=selected===today()?"Today's log":'Daily log';$('entry-count').textContent=entries.length+' entr'+(entries.length===1?'y':'ies');
